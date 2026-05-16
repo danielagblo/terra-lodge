@@ -4,6 +4,7 @@ import Icon from "@/components/icon";
 import AvailabilitySearch from "@/components/availability-search";
 import RoomCard from "@/components/room-card";
 import { roomInventory } from "@/lib/rooms";
+import { siteContent } from "@/lib/site-content";
 
 export type Amenity = {
   icon: string;
@@ -112,7 +113,7 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
   );
 }
 
-export function AmenitiesSection({ amenities }: { amenities: Amenity[] }) {
+export function AmenitiesSection({ amenities }: { amenities: readonly Amenity[] }) {
   return (
     <section
       className="px-6 md:px-section-padding py-section-padding bg-white"
@@ -122,15 +123,13 @@ export function AmenitiesSection({ amenities }: { amenities: Amenity[] }) {
         <div className="order-2 md:order-1">
           <div className="flex flex-col gap-6">
             <span className="font-label-caps text-xs font-bold text-laterite-red tracking-widest uppercase">
-              Our Service
+              {siteContent.home.sections.amenities.eyebrow}
             </span>
             <h2 className="font-headline-md text-charred-wood font-bold">
-              Why Stay With Us?
+              {siteContent.home.sections.amenities.title}
             </h2>
             <p className="font-body-md text-on-surface-variant leading-relaxed">
-              At Terra Lodge, we prioritize your peace and comfort. Our lodge is
-              built to offer a blend of traditional aesthetics and modern
-              functionality.
+              {siteContent.home.sections.amenities.description}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
               {amenities.map((amenity) => (
@@ -150,15 +149,15 @@ export function AmenitiesSection({ amenities }: { amenities: Amenity[] }) {
         <div className="order-1 md:order-2">
           <div className="relative aspect-[4/3]">
             <Image
-              alt="Terra Lodge exterior with clean pathways"
+              alt={siteContent.home.sections.amenities.imageAlt}
               className="object-cover shadow-lg"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6QyRAJzExUYQqgcJW1sw5TJ-0B1_O_kknMgaFEHU2yzhxcXHx9hqtQDtGe3VO5HI3aTSHohNa_iQMsRNLa7SrFyx7kBscWv6ye9J91ZYWZvIb4lYV9TpmLILLHLafTCV7Ko_4rUClM-VTiQv7M2neLHW1znTdkM6nhP0Rw5GWqPNtLTMRSEjg-GNbGoNz8gZQrixSaML9fzeVoMwjbUrWZDXMLekhMPHUcuDfTXhG_EwCUTLhQTqTLNMuRao-ojqZBatTi9PHynm6"
+              src={siteContent.home.sections.amenities.imageSrc}
             />
             <div className="absolute -bottom-6 -left-6 bg-baked-silt p-6 border-l-4 border-primary shadow-lg hidden lg:block">
               <p className="font-bold text-charred-wood">
-                Experience Accra&apos;s Finest
+                {siteContent.home.sections.amenities.caption}
               </p>
             </div>
           </div>
@@ -176,9 +175,9 @@ export function FeaturedRoomsSection() {
     >
       <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6 max-w-6xl mx-auto">
         <SectionHeading
-          eyebrow="Available Lodgings"
-          title="Functional Sanctuaries"
-          description="Comfortable, clean, and well-equipped rooms designed for a restful stay in the heart of the city."
+          eyebrow={siteContent.home.sections.featuredRooms.eyebrow}
+          title={siteContent.home.sections.featuredRooms.title}
+          description={siteContent.home.sections.featuredRooms.description}
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -201,17 +200,17 @@ export function FeaturedRoomsSection() {
 export function TestimonialsSection({
   testimonials,
 }: {
-  testimonials: Testimonial[];
+  testimonials: readonly Testimonial[];
 }) {
   return (
     <section className="px-6 md:px-section-padding py-section-padding bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <span className="font-label-caps text-xs font-bold text-laterite-red uppercase tracking-widest">
-            Guest Experiences
+            {siteContent.home.sections.testimonials.eyebrow}
           </span>
           <h2 className="font-headline-md text-charred-wood font-bold mt-2">
-            What Our Visitors Say
+            {siteContent.home.sections.testimonials.title}
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -235,21 +234,21 @@ export function LocationSection() {
           <div className="space-y-8">
             <div>
               <span className="font-label-caps text-xs font-bold text-laterite-red uppercase tracking-widest">
-                Our Location
+                {siteContent.home.sections.location.eyebrow}
               </span>
               <h2 className="font-headline-md text-charred-wood font-bold mt-2">
-                Find Us
+                {siteContent.home.sections.location.title}
               </h2>
               <div className="flex items-start gap-3 mt-4 text-on-surface-variant">
                 <Icon name="location_on" className="text-primary mt-1" />
                 <p className="font-body-lg font-medium">
-                  X9 Coffee Highway, Adenta, Accra, Ghana
+                  {siteContent.home.sections.location.label}
                 </p>
               </div>
             </div>
             <div className="bg-white p-6 shadow-lg border border-surface-container">
               <h3 className="font-headline-sm text-xl font-bold mb-6">
-                Reserve Your Stay
+                {siteContent.home.sections.location.reserveTitle}
               </h3>
               <AvailabilitySearch compact submitLabel="Check Availability" />
             </div>
@@ -259,8 +258,8 @@ export function LocationSection() {
               className="absolute inset-0 h-full w-full"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.7729547445757!2d-0.1607389!3d5.6064541!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNcKwMzYnMjMuMiJOIDDCsDA5JzM4LjciVw!5e0!3m2!1sen!2sgh!4v1234567890"
-              title="Terra Lodge Location Map"
+              src={siteContent.home.sections.location.mapSrc}
+              title={siteContent.home.sections.location.mapTitle}
             />
             <div className="absolute inset-0 bg-charred-wood/10 pointer-events-none" />
           </div>

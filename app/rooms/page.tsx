@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import RoomCatalog from "@/components/room-catalog";
+import { siteContent } from "@/lib/site-content";
 
 export const metadata: Metadata = {
-  title: "Rooms | Terra Lodge",
-  description:
-    "Browse the full Terra Lodge room collection, rates, filters, and booking options.",
+  title: siteContent.rooms.pageTitle,
+  description: siteContent.rooms.pageDescription,
 };
 
 function parseCount(value: string | string[] | undefined, fallback: number) {

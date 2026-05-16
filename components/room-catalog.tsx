@@ -5,6 +5,7 @@ import Image from "next/image";
 import Icon from "@/components/icon";
 import RoomCard from "@/components/room-card";
 import { roomInventory } from "@/lib/rooms";
+import { siteContent } from "@/lib/site-content";
 
 const bedTypes = ["1 King", "1 Queen", "2 Queen"] as const;
 const roomTypes = ["Suite", "Deluxe", "Premium"] as const;
@@ -469,15 +470,14 @@ export default function RoomCatalog({
             </div>
             <div className="content-stretch drop-shadow-[0px_4px_1.5px_rgba(0,0,0,0.1),0px_10px_4px_rgba(0,0,0,0.04)] flex flex-col items-center shrink-0 max-w-4xl">
               <div className="flex flex-col font-['Eczar:Bold',sans-serif] font-bold justify-center leading-[0] shrink-0 text-[40px] sm:text-[48px] md:text-[56px] text-center text-white">
-                <p className="leading-[1.05]">Functional Sanctuaries</p>
+                <p className="leading-[1.05]">{siteContent.rooms.heroTitle}</p>
               </div>
             </div>
             <div className="content-stretch drop-shadow-[0px_2px_1px_rgba(0,0,0,0.06),0px_4px_1.5px_rgba(0,0,0,0.07)] flex flex-col items-center max-w-[672px] shrink-0">
               <div className="flex flex-col font-['Montserrat:Medium',sans-serif] font-medium justify-center leading-[0] shrink-0 text-[15px] md:text-[16px] text-center text-white">
                 <p className="leading-[24px] mb-0">
-                  Comfortable, clean, and well-equipped rooms designed for a
+                  {siteContent.rooms.heroDescription}
                 </p>
-                <p className="leading-[24px]">restful stay in the heart of the city.</p>
               </div>
             </div>
           </div>

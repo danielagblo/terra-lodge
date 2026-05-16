@@ -3,6 +3,7 @@
 import Icon from "./icon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { siteContent } from "@/lib/site-content";
 
 type NavLink = {
   label: string;
@@ -39,7 +40,7 @@ export const Header = () => {
             href="/"
           >
             <Icon name="foundation" className="text-primary text-3xl" />
-            <span className="tracking-tight">Terra Lodge</span>
+            <span className="tracking-tight">{siteContent.brand.name}</span>
           </Link>
           <div className="hidden md:flex gap-8 items-center">
             {navLinks.map((link) => (
@@ -59,7 +60,7 @@ export const Header = () => {
           </div>
           <div className="hidden lg:flex items-center gap-1 font-body-md font-bold text-primary">
             <Icon name="call" className="text-sm" />
-            <span>+233 24 123 4567</span>
+            <span>{siteContent.contact.phone}</span>
           </div>
         </nav>
       </header>

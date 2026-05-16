@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { roomInventory } from "@/lib/rooms";
 import RoomDetailView from "@/components/room-detail-view";
+import { siteContent } from "@/lib/site-content";
 
 export async function generateMetadata({
   params,
@@ -15,13 +16,13 @@ export async function generateMetadata({
 
   if (!room) {
     return {
-      title: "Room Not Found | Terra Lodge",
+      title: `Room Not Found | ${siteContent.brand.name}`,
       description: "The requested room could not be found.",
     };
   }
 
   return {
-    title: `${room.name} | Terra Lodge`,
+    title: `${room.name} | ${siteContent.brand.name}`,
     description: room.description,
   };
 }

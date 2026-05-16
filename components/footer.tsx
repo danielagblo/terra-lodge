@@ -1,26 +1,8 @@
 import React from "react";
 import Link from "next/link";
+import { siteContent } from "@/lib/site-content";
 
-const socialLinks = [
-  {
-    label: "Facebook",
-    href: "https://facebook.com",
-  },
-  {
-    label: "Instagram",
-    href: "https://instagram.com",
-  },
-  {
-    label: "WhatsApp",
-    href: "https://wa.me/233241234567",
-  },
-  {
-    label: "X",
-    href: "https://x.com",
-  },
-] as const;
-
-function SocialMark({ name }: { name: (typeof socialLinks)[number]["label"] }) {
+function SocialMark({ name }: { name: string }) {
   switch (name) {
     case "Facebook":
       return (
@@ -69,11 +51,10 @@ export const Footer = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-12 px-6 md:px-section-padding py-16 w-full max-w-7xl mx-auto">
         <div className="md:col-span-1">
           <div className="font-headline-md text-dry-grass font-bold mb-4">
-            Terra Lodge
+            {siteContent.brand.name}
           </div>
           <p className="font-body-md text-baked-silt text-sm leading-relaxed mb-6">
-            Quality accommodation in Accra. Experience true comfort and
-            hospitality during your stay in Ghana.
+            {siteContent.brand.description}
           </p>
         </div>
         <div className="flex flex-col gap-4">
@@ -109,15 +90,16 @@ export const Footer = () => {
           <span className="font-label-caps text-xs text-dry-grass/60 uppercase font-bold tracking-widest mb-2">
             Location
           </span>
+          {siteContent.contact.addressLines.map((line) => (
+            <p className="text-baked-silt font-body-md text-sm" key={line}>
+              {line}
+            </p>
+          ))}
           <p className="text-baked-silt font-body-md text-sm">
-            124 Otoo Street, Adenta Housing Down
+            {siteContent.contact.email}
           </p>
-          <p className="text-baked-silt font-body-md text-sm">Accra, Ghana</p>
           <p className="text-baked-silt font-body-md text-sm">
-            info@terra-lodge.com
-          </p>
-          <p className="text-baked-silt font-body-md text-sm">
-            +233 24 123 4567
+            {siteContent.contact.phone}
           </p>
         </div>
         <div className="flex flex-col gap-4">
@@ -125,7 +107,7 @@ export const Footer = () => {
             Socials
           </span>
           <div className="flex flex-wrap gap-3">
-            {socialLinks.map((social) => (
+            {siteContent.socialLinks.map((social) => (
               <a
                 aria-label={social.label}
                 className="inline-flex h-12 w-12 items-center justify-center rounded-sm bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
@@ -142,7 +124,7 @@ export const Footer = () => {
       </div>
       <div className="px-6 md:px-section-padding pb-8 w-full max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center border-t border-white/10 pt-8">
         <span className="font-label-micro text-[10px] text-baked-silt/50 uppercase font-bold tracking-widest">
-          &copy; 2026 Terra Lodge. Accra, Ghana.
+          {siteContent.footer.copyright}
         </span>
         <div className="flex gap-6 mt-4 md:mt-0 items-center">
           <span className="text-[10px] text-baked-silt/50 uppercase font-bold">

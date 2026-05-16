@@ -4,10 +4,11 @@ import "./globals.css";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { FAB } from "@/components/fab";
+import { siteContent } from "@/lib/site-content";
 
 export const metadata: Metadata = {
-  title: "Terra Lodge",
-  description: "Terra Lodge: Experience Authentic Comfort",
+  title: siteContent.layout.title,
+  description: siteContent.layout.description,
 };
 
 export default function RootLayout({

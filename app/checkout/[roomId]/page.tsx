@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CheckoutView from "@/components/checkout-view";
 import { roomInventory } from "@/lib/rooms";
+import { siteContent } from "@/lib/site-content";
 
 export async function generateMetadata({
   params,
@@ -15,14 +16,14 @@ export async function generateMetadata({
 
   if (!room) {
     return {
-      title: "Checkout Not Found | Terra Lodge",
+      title: `Checkout Not Found | ${siteContent.brand.name}`,
       description: "The requested checkout page could not be found.",
     };
   }
 
   return {
-    title: `Checkout | ${room.name} | Terra Lodge`,
-    description: `Complete your booking for ${room.name} at Terra Lodge.`,
+    title: `Checkout | ${room.name} | ${siteContent.brand.name}`,
+    description: `Complete your booking for ${room.name} at ${siteContent.brand.name}.`,
   };
 }
 

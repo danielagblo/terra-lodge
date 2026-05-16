@@ -8,6 +8,7 @@ import {
 } from "react";
 import Image from "next/image";
 import { roomInventory } from "@/lib/rooms";
+import { siteContent } from "@/lib/site-content";
 
 type ContactFormState = {
   fullName: string;
@@ -167,7 +168,7 @@ export default function ContactPage() {
 
                 <InfoRow
                   title="Email"
-                  lines={["info@terrasantalodge.com"]}
+                  lines={[siteContent.contact.email]}
                   icon={
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 20 20">
                       <path
@@ -183,11 +184,7 @@ export default function ContactPage() {
 
                 <InfoRow
                   title="Address"
-                  lines={[
-                    "X9 Coffee Highway",
-                    "Adenta Municipality",
-                    "Greater Accra, Ghana",
-                  ]}
+                  lines={siteContent.contact.addressLines}
                   icon={
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 20 20">
                       <path
@@ -208,11 +205,11 @@ export default function ContactPage() {
               <div className="flex flex-col gap-4">
                 <HoursRow
                   label="Office Hours"
-                  value="8:00 AM - 8:00 PM"
+                  value={siteContent.contact.officeHours}
                   subvalue="Daily"
                 />
-                <HoursRow label="Check-in" value="2:00 PM" />
-                <HoursRow label="Check-out" value="11:00 AM" />
+                <HoursRow label="Check-in" value={siteContent.contact.checkIn} />
+                <HoursRow label="Check-out" value={siteContent.contact.checkOut} />
               </div>
             </div>
           </div>
@@ -229,7 +226,7 @@ export default function ContactPage() {
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.7729547445757!2d-0.1607389!3d5.6064541!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNcKwMzYnMjMuMiJOIDDCsDA5JzM4LjciVw!5e0!3m2!1sen!2sgh!4v1234567890"
-              title="Terra Santa Lodge Location"
+              title={siteContent.contact.contactMapTitle}
             />
           </div>
         </div>
@@ -278,7 +275,7 @@ function InfoRow({
 }: {
   icon: ReactNode;
   title: string;
-  lines: string[];
+  lines: readonly string[];
 }) {
   return (
     <div className="flex items-start gap-4">

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icon";
 import type { Room } from "@/lib/rooms";
+import { siteContent } from "@/lib/site-content";
 
 type ModalType = "success" | "failed" | "cancelled" | null;
 
@@ -108,7 +109,7 @@ function SuccessModal({
   return (
     <ModalShell
       icon={<Icon name="check" className="text-3xl" />}
-      message="Your room has been reserved. A confirmation email has been sent to your inbox."
+      message={siteContent.checkout.successMessage}
       onClose={onClose}
       primaryAction={
         <Link
@@ -140,9 +141,9 @@ function SuccessModal({
 
 function FailedModal({ onClose }: { onClose: () => void }) {
   return (
-    <ModalShell
+      <ModalShell
       icon={<Icon name="error" className="text-3xl" />}
-      message="Your payment could not be processed. Please try again or contact us for assistance."
+      message={siteContent.checkout.failureMessage}
       onClose={onClose}
       primaryAction={
         <button
@@ -287,7 +288,7 @@ export default function CheckoutView({ room }: { room: Room }) {
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <Image
-            alt="Terra Lodge booking hero"
+            alt={siteContent.checkout.heroAlt}
             className="object-cover"
             fill
             priority
