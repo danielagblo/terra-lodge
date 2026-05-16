@@ -1,29 +1,67 @@
 import React from "react";
-import Icon from "./icon";
 import Link from "next/link";
 
 const socialLinks = [
   {
     label: "Facebook",
     href: "https://facebook.com",
-    icon: "facebook",
   },
   {
     label: "Instagram",
     href: "https://instagram.com",
-    icon: "photo_camera",
   },
   {
     label: "WhatsApp",
     href: "https://wa.me/233241234567",
-    icon: "chat",
   },
   {
     label: "X",
     href: "https://x.com",
-    icon: "public",
   },
 ] as const;
+
+function SocialMark({ name }: { name: (typeof socialLinks)[number]["label"] }) {
+  switch (name) {
+    case "Facebook":
+      return (
+        <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
+          <path
+            d="M14 8.5V7.1c0-.7.5-1.1 1.2-1.1H17V3h-2.4C12.2 3 11 4.4 11 6.5V8.5H9v3h2v9h3v-9h2.4l.6-3H14Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "Instagram":
+      return (
+        <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
+          <path
+            d="M7.2 3.5h9.6A3.7 3.7 0 0 1 20.5 7.2v9.6a3.7 3.7 0 0 1-3.7 3.7H7.2a3.7 3.7 0 0 1-3.7-3.7V7.2A3.7 3.7 0 0 1 7.2 3.5Zm0 2A1.7 1.7 0 0 0 5.5 7.2v9.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V7.2a1.7 1.7 0 0 0-1.7-1.7H7.2Zm9.3 1.2a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM12 8.2A3.8 3.8 0 1 1 12 15.8a3.8 3.8 0 0 1 0-7.6Zm0 2a1.8 1.8 0 1 0 0 3.6 1.8 1.8 0 0 0 0-3.6Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "WhatsApp":
+      return (
+        <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
+          <path
+            d="M12.1 3A8.9 8.9 0 0 0 4.4 16.3L3 21l4.8-1.3A8.9 8.9 0 1 0 12.1 3Zm0 2a6.9 6.9 0 0 1 0 13.8c-1.2 0-2.4-.3-3.4-.9l-.2-.1-2.8.8.8-2.7-.1-.2A6.9 6.9 0 1 1 12.1 5Zm3.3 9.2c-.2.5-1 .9-1.4 1-.4.1-.8.1-1.2-.1-.4-.2-1.6-.7-3-2.1-1.1-1.1-1.8-2.5-2-2.9-.2-.4 0-.7.2-.9l.6-.7c.2-.2.3-.3.5-.5.2-.2.3-.2.5-.1l1.2 1.5c.1.2.1.4 0 .5l-.4.5c-.1.1-.2.3-.1.5.1.2.4.8 1 1.4.8.8 1.5 1.1 1.7 1.2.2.1.4.1.5-.1l.6-.7c.2-.2.3-.2.5-.1l1.5 1c.2.1.2.3.1.5Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "X":
+      return (
+        <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
+          <path
+            d="M4 4h4.2l4.1 5.5L16.8 4H20l-5.4 7 5.9 9H16l-4.5-6-4.6 6H4.1l5.8-7.5L4 4Zm4.3 2.1 8.1 11.8h1.8L10.1 6.1H8.3Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 export const Footer = () => {
   return (
@@ -36,9 +74,6 @@ export const Footer = () => {
           <p className="font-body-md text-baked-silt text-sm leading-relaxed mb-6">
             Quality accommodation in Accra. Experience true comfort and
             hospitality during your stay in Ghana.
-          </p>
-          <p className="text-xs text-baked-silt/70 font-body-md leading-relaxed">
-            Find us on social channels below for updates and direct contact.
           </p>
         </div>
         <div className="flex flex-col gap-4">
@@ -89,21 +124,17 @@ export const Footer = () => {
           <span className="font-label-caps text-xs text-dry-grass/60 uppercase font-bold tracking-widest mb-2">
             Socials
           </span>
-          <p className="text-xs text-baked-silt font-body-md leading-relaxed">
-            Follow Terra Lodge for updates, travel inspiration, and direct
-            contact options.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-wrap gap-3">
             {socialLinks.map((social) => (
               <a
-                className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 hover:bg-white/10 transition-colors"
+                aria-label={social.label}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-sm bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
                 href={social.href}
                 key={social.label}
                 rel="noreferrer"
                 target="_blank"
               >
-                <Icon name={social.icon} className="text-white text-[20px]" />
-                <span className="text-sm font-body-md">{social.label}</span>
+                <SocialMark name={social.label} />
               </a>
             ))}
           </div>
@@ -120,7 +151,6 @@ export const Footer = () => {
           <span className="text-[10px] text-baked-silt/50 uppercase font-bold">
             Terms of Service
           </span>
-          <Icon name="payments" className="text-baked-silt/30 text-xl" />
         </div>
       </div>
     </footer>
