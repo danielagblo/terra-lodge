@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://terra.vercel.app/" target="_blank" rel="noopener noreferrer">
+  <a href="https://terra-amber-omega.vercel.app/" target="_blank" rel="noopener noreferrer">
     <img
       src="https://raw.githubusercontent.com/Programming-Sai/terra/snapmock/output_laptop.png"
       srcset="
