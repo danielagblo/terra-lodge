@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { finalizePaidBooking } from "@/lib/booking-email";
 import { verifyPaystackSignature } from "@/lib/paystack";
 
 export const runtime = "nodejs";
@@ -30,13 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true });
   }
 
-  await query(
-    `update bookings
-     set booking_status = 'confirmed',
-         payment_status = 'paid'
-     where paystack_reference = $1`,
-    [event.data.reference],
-  );
+  await finalizePaidBooking(event.data.reference);
 
   return NextResponse.json({ received: true });
 }

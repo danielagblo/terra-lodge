@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
-import { serializeBooking, type BookingDbRow } from "@/lib/db-serializers";
+import { finalizePaidBooking } from "@/lib/booking-email";
 import { verifyPaystackTransaction } from "@/lib/paystack";
 
 export const runtime = "nodejs";
@@ -29,21 +29,14 @@ export async function GET(request: Request) {
     );
   }
 
-  const bookingResult = await query(
-    `update bookings
-     set booking_status = 'confirmed',
-         payment_status = 'paid'
-     where paystack_reference = $1
-     returning *`,
-    [reference],
-  );
+  const booking = await finalizePaidBooking(reference);
 
-  if (bookingResult.rowCount === 0) {
+  if (!booking) {
     return NextResponse.json({ error: "Booking not found." }, { status: 404 });
   }
 
   return NextResponse.json({
-    booking: serializeBooking(bookingResult.rows[0] as BookingDbRow),
+    booking,
     paystack: paystackResponse.data,
   });
 }

@@ -28,9 +28,61 @@ export default function ContactPageClient({
     phone: "",
     message: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitState, setSubmitState] = useState<{
+    kind: "idle" | "success" | "error";
+    message: string;
+  }>({
+    kind: "idle",
+    message: "",
+  });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    setIsSubmitting(true);
+    setSubmitState({
+      kind: "idle",
+      message: "",
+    });
+
+    try {
+      const response = await fetch("/api/contact", {
+        body: JSON.stringify(formData),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(payload?.error ?? "Unable to send message.");
+      }
+
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        message: "",
+      });
+
+      setSubmitState({
+        kind: "success",
+        message:
+          "Thanks for reaching out. Your message has been sent and we will get back to you shortly.",
+      });
+    } catch {
+      setSubmitState({
+        kind: "error",
+        message:
+          "We could not send your message right now. Please try again or reach us by email.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (
@@ -130,13 +182,26 @@ export default function ContactPageClient({
               </div>
 
               <button
-                className="relative w-full bg-primary px-6 py-4 text-white transition-colors hover:bg-laterite-red"
+                className="relative w-full bg-primary px-6 py-4 text-white transition-colors hover:bg-laterite-red disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isSubmitting}
                 type="submit"
               >
                 <span className="font-label-caps text-sm font-bold uppercase">
-                  Send Message
+                  {isSubmitting ? "Sending..." : "Send Message"}
                 </span>
               </button>
+
+              {submitState.kind !== "idle" ? (
+                <p
+                  className={`text-sm leading-relaxed ${
+                    submitState.kind === "success"
+                      ? "text-laterite-red"
+                      : "text-red-600"
+                  }`}
+                >
+                  {submitState.message}
+                </p>
+              ) : null}
             </form>
           </div>
 
