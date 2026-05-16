@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Icon from "@/components/icon";
 import RoomCard from "@/components/room-card";
-import { roomInventory } from "@/lib/rooms";
+import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
 const bedTypes = ["1 King", "1 Queen", "2 Queen"] as const;
@@ -333,6 +333,7 @@ function Pagination({
 
 export default function RoomCatalog({
   initialFilters,
+  rooms,
 }: {
   initialFilters?: {
     checkIn?: string;
@@ -342,6 +343,7 @@ export default function RoomCatalog({
     selectedRoomType?: string;
     selectedViewType?: string;
   };
+  rooms: readonly Room[];
 }) {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [checkIn, setCheckIn] = useState(initialFilters?.checkIn ?? "");
@@ -362,7 +364,7 @@ export default function RoomCatalog({
   const roomsPerPage = 6;
 
   const filteredRooms = useMemo(() => {
-    return roomInventory.filter((room) => {
+    return rooms.filter((room) => {
       if (room.priceValue < priceRange[0] || room.priceValue > priceRange[1]) {
         return false;
       }
@@ -379,6 +381,7 @@ export default function RoomCatalog({
       return true;
     });
   }, [
+    rooms,
     priceRange,
     selectedBedType,
     selectedRoomType,
@@ -457,7 +460,7 @@ export default function RoomCatalog({
             fill
             priority
             sizes="100vw"
-            src={roomInventory[0].image}
+            src={rooms[0]?.image ?? siteContent.home.hero.imageSrc}
           />
         </div>
         <div className="absolute inset-0 bg-[rgba(47,47,47,0.85)]" />
@@ -546,7 +549,7 @@ export default function RoomCatalog({
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[32px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-[32px]">
                   {paginatedRooms.map((room) => (
                     <RoomCard key={room.id} room={room} />
                   ))}

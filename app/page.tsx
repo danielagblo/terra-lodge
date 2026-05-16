@@ -7,14 +7,20 @@ import {
   LocationSection,
   TestimonialsSection,
 } from "@/components/home-sections";
+import { getRooms } from "@/lib/room-data";
 import { siteContent } from "@/lib/site-content";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: `${siteContent.brand.name} | ${siteContent.brand.tagline}`,
   description: siteContent.brand.description,
 };
 
-export default function Page() {
+export default async function Page() {
+  const rooms = await getRooms();
+
   return (
     <main
       className="bg-surface-bone text-charred-wood selection:bg-dry-grass relative"
@@ -49,7 +55,7 @@ export default function Page() {
       </section>
 
       <AmenitiesSection amenities={siteContent.home.amenities} />
-      <FeaturedRoomsSection />
+      <FeaturedRoomsSection rooms={rooms} />
       <TestimonialsSection testimonials={siteContent.home.testimonials} />
       <LocationSection />
     </main>

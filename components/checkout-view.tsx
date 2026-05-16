@@ -104,7 +104,7 @@ function SuccessModal({
 }: {
   onClose: () => void;
   reference: string;
-  roomId: number;
+  roomId: string | number;
 }) {
   return (
     <ModalShell

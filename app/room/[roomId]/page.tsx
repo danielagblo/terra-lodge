@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { roomInventory } from "@/lib/rooms";
+import { getRoomByIdentifier } from "@/lib/room-data";
 import RoomDetailView from "@/components/room-detail-view";
 import { siteContent } from "@/lib/site-content";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
@@ -10,9 +13,7 @@ export async function generateMetadata({
   params: Promise<{ roomId: string }>;
 }): Promise<Metadata> {
   const { roomId } = await params;
-  const room = roomInventory.find(
-    (item) => String(item.id) === roomId || item.slug === roomId,
-  );
+  const room = await getRoomByIdentifier(roomId);
 
   if (!room) {
     return {
@@ -33,9 +34,7 @@ export default async function RoomDetailPage({
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = await params;
-  const room = roomInventory.find(
-    (item) => String(item.id) === roomId || item.slug === roomId,
-  );
+  const room = await getRoomByIdentifier(roomId);
 
   if (!room) {
     notFound();

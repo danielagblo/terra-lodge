@@ -4,7 +4,7 @@ export type RoomFeature = {
 };
 
 export type Room = {
-  id: number;
+  id: string | number;
   slug: string;
   name: string;
   priceValue: number;

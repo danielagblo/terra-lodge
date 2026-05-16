@@ -6,13 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:seed": "node scripts/seed-db.mjs"
   },
   "dependencies": {
     "@fontsource/material-symbols-outlined": "^5.2.44",
     "@paystack/inline-js": "^2.22.8",
     "@supabase/supabase-js": "^2.105.4",
+    "@types/pg": "^8.20.0",
     "next": "16.2.6",
+    "pg": "^8.20.0",
     "react": "19.2.4",
     "react-datepicker": "^9.1.0",
     "react-dom": "19.2.4",

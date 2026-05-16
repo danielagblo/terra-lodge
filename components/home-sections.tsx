@@ -3,7 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/icon";
 import AvailabilitySearch from "@/components/availability-search";
 import RoomCard from "@/components/room-card";
-import { roomInventory } from "@/lib/rooms";
+import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
 export type Amenity = {
@@ -167,7 +167,7 @@ export function AmenitiesSection({ amenities }: { amenities: readonly Amenity[] 
   );
 }
 
-export function FeaturedRoomsSection() {
+export function FeaturedRoomsSection({ rooms }: { rooms: readonly Room[] }) {
   return (
     <section
       className="px-6 md:px-section-padding py-section-padding bg-surface-container-low border-y border-surface-container"
@@ -181,7 +181,7 @@ export function FeaturedRoomsSection() {
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        {roomInventory.slice(0, 6).map((room) => (
+        {rooms.slice(0, 6).map((room) => (
           <RoomCard key={room.slug} room={room} />
         ))}
       </div>

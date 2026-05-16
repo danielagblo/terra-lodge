@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import RoomCatalog from "@/components/room-catalog";
+import { getRooms } from "@/lib/room-data";
 import { siteContent } from "@/lib/site-content";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: siteContent.rooms.pageTitle,
@@ -18,6 +22,7 @@ export default async function RoomsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const rooms = await getRooms();
   const query = await searchParams;
   const guestsValue = parseCount(query.guests, 1);
   const selectedBedType = Array.isArray(query.bedType)
@@ -35,6 +40,7 @@ export default async function RoomsPage({
   return (
     <main className="bg-surface-bone text-charred-wood">
       <RoomCatalog
+        rooms={rooms}
         initialFilters={{
           checkIn,
           checkOut,
