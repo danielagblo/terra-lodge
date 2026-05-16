@@ -1,65 +1,113 @@
+import type { Metadata } from "next";
 import Image from "next/image";
+import AvailabilitySearch from "@/components/availability-search";
+import {
+  AmenitiesSection,
+  FeaturedRoomsSection,
+  LocationSection,
+  TestimonialsSection,
+  type Amenity,
+  type Testimonial,
+} from "@/components/home-sections";
 
-export default function Home() {
+const amenities: Amenity[] = [
+  {
+    icon: "wifi",
+    title: "Fast Wi-Fi",
+    description: "Stay connected throughout the lodge.",
+  },
+  {
+    icon: "local_parking",
+    title: "Secure Parking",
+    description: "24/7 security for your peace of mind.",
+  },
+  {
+    icon: "restaurant",
+    title: "Local Dining",
+    description: "Authentic Ghanaian meals daily.",
+  },
+  {
+    icon: "ac_unit",
+    title: "Full A/C",
+    description: "Climate controlled rooms for comfort.",
+  },
+];
+
+const testimonials: Testimonial[] = [
+  {
+    quote:
+      "An absolute gem. The comfort level is top-notch and the staff treated me like family. Highly recommend for business travelers.",
+    initials: "KM",
+    name: "Kwame Mensah",
+    location: "Accra, Ghana",
+    rating: 5,
+    accentClassName: "bg-baked-silt",
+  },
+  {
+    quote:
+      "The attention to detail in the rooms is impressive. It is clean, quiet, and perfectly located for easy access to the main road while staying peaceful.",
+    initials: "AA",
+    name: "Abena Appiah",
+    location: "Kumasi, Ghana",
+    rating: 4,
+    accentClassName: "bg-primary-container",
+  },
+  {
+    quote:
+      "Great service and excellent local food. The internet was reliable for my remote meetings. Terra Lodge is now my go-to in Accra.",
+    initials: "KB",
+    name: "Kojo Boateng",
+    location: "Cape Coast, Ghana",
+    rating: 5,
+    accentClassName: "bg-laterite-red",
+  },
+];
+
+export const metadata: Metadata = {
+  title: "Terra Lodge | Authentic Comfort",
+  description:
+    "Terra Lodge offers calm, comfortable accommodation in Accra with local hospitality and modern essentials.",
+};
+
+export default function Page() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main
+      className="bg-surface-bone text-charred-wood selection:bg-dry-grass relative"
+      id="home"
+    >
+      <section className="relative min-h-[75vh] flex flex-col items-center justify-center overflow-hidden px-6 pt-12 pb-24">
+        <div className="absolute inset-0 z-0">
+          <Image
+            alt="A clean, sunlit bedroom in Terra Lodge"
+            className="object-cover brightness-75"
+            fill
+            priority
+            sizes="100vw"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTlrmwjBV3wjEMNgLFGoZn8HZ-OKbxA5RVS6wH1nXZqH4vJ7zvWP0F4d_hd-V6SwqCQ81ZIVoMT2OUtTz3x_HXTIwiSlGsuqPiKX0dD83GTaDeFBvkWLBUGMZyUDoIC7ht9rHvfUigz3Oq7H2qICVQKXV-Re-7e-nTJlHQ-tcQWyGN0IpblXdifJrC0j1bkV03ocxo7Yc87d68936hE_gVsb00cYEfzXsAwM8uQx3bR0JgnxywA1F_wzsBRGFEJCNfWm7w0jf-Ki93"
+          />
+        </div>
+        <div className="relative z-10 text-center max-w-4xl px-4">
+          <span className="inline-block bg-dry-grass/90 text-charred-wood px-4 py-1 font-label-caps text-[10px] font-bold uppercase tracking-widest mb-6 shadow-sm">
+            Welcome
+          </span>
+          <h1 className="font-eczar text-[48px] md:text-[80px] leading-tight text-white drop-shadow-lg font-bold">
+            Experience Authentic Comfort
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="font-body-lg text-white mt-6 max-w-2xl mx-auto drop-shadow-md font-medium">
+            Quality accommodation with traditional Ghanaian hospitality. Your
+            serene home away from home.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="relative z-20 mt-12 w-full max-w-6xl">
+          <AvailabilitySearch submitLabel="Check Availability" />
         </div>
-      </main>
-    </div>
+      </section>
+
+      <AmenitiesSection amenities={amenities} />
+      <FeaturedRoomsSection />
+      <TestimonialsSection testimonials={testimonials} />
+      <LocationSection />
+    </main>
   );
 }
