@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Icon from "@/components/icon";
 
 type TabId = "general" | "notifications" | "payments" | "security";
@@ -35,6 +35,27 @@ const tabs: Array<{ id: TabId; label: string; icon: string }> = [
   { id: "payments", label: "Payments", icon: "payments" },
   { id: "security", label: "Security", icon: "lock" },
 ];
+
+const STORAGE_KEY = "terra-lodge-admin-settings";
+
+function loadPersistedSettings() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+
+    return JSON.parse(raw) as {
+      generalSettings?: GeneralSettings;
+      notificationSettings?: NotificationSettings;
+      paymentSettings?: PaymentSettings;
+    };
+  } catch {
+    return {};
+  }
+}
 
 function PageHeader({
   title,
@@ -173,28 +194,49 @@ function Field({
 
 export function AdminSettingsView() {
   const [activeTab, setActiveTab] = useState<TabId>("general");
-  const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
-    hotelName: "Terra Santa Lodge",
-    email: "info@terrasanta.com",
-    phone: "+233 30 123 4567",
-    address: "Adenta, Accra, Ghana",
-    currency: "GHS",
-    timezone: "GMT",
-  });
+  const [generalSettings, setGeneralSettings] = useState<GeneralSettings>(() =>
+    loadPersistedSettings().generalSettings ?? {
+      hotelName: "Terra Santa Lodge",
+      email: "info@terrasanta.com",
+      phone: "+233 30 123 4567",
+      address: "Adenta, Accra, Ghana",
+      currency: "GHS",
+      timezone: "GMT",
+    },
+  );
   const [notificationSettings, setNotificationSettings] =
-    useState<NotificationSettings>({
-      emailNotifications: true,
-      smsNotifications: false,
-      bookingAlerts: true,
-      paymentAlerts: true,
-      cancelationAlerts: true,
-    });
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({
-    mobileMoney: true,
-    cardPayments: true,
-    bankTransfer: true,
-    cashPayments: true,
-  });
+    useState<NotificationSettings>(() =>
+      loadPersistedSettings().notificationSettings ?? {
+        emailNotifications: true,
+        smsNotifications: false,
+        bookingAlerts: true,
+        paymentAlerts: true,
+        cancelationAlerts: true,
+      },
+    );
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() =>
+    loadPersistedSettings().paymentSettings ?? {
+      mobileMoney: true,
+      cardPayments: true,
+      bankTransfer: true,
+      cashPayments: true,
+    },
+  );
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          generalSettings,
+          notificationSettings,
+          paymentSettings,
+        }),
+      );
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [generalSettings, notificationSettings, paymentSettings]);
 
   return (
     <div>

@@ -1,8 +1,28 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
 import type { AdminRoomRecord } from "@/lib/admin-data";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 
 type RoomStatus = "Available" | "Maintenance";
 type CurrentOccupancy = "Vacant" | "Occupied" | "Under Maintenance";
@@ -19,6 +39,71 @@ type RoomRecord = {
   totalBookings: number;
   currentOccupancy: CurrentOccupancy;
 };
+
+type RoomApiRecord = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  price_per_night: number;
+  bed_type: string;
+  max_guests: number;
+  room_type: string;
+  view_type: string;
+  size: string;
+  images: string[];
+  amenities: string[];
+  features: string[];
+  cancellation_policy: string | null;
+  is_active: boolean;
+  availability_status: string;
+  availability_blocks: unknown[];
+  featured: boolean;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type RoomFormState = {
+  id: string | null;
+  slug: string;
+  name: string;
+  description: string;
+  images: string[];
+  price_per_night: string;
+  bed_type: string;
+  max_guests: string;
+  room_type: string;
+  view_type: string;
+  size: string;
+  amenities: string[];
+  features: string[];
+  cancellation_policy: string;
+  is_active: boolean;
+  availability_status: string;
+  featured: boolean;
+};
+
+const emptyRoomForm = (): RoomFormState => ({
+  id: null,
+  slug: "",
+  name: "",
+  description: "",
+  images: [],
+  price_per_night: "",
+  bed_type: "",
+  max_guests: "",
+  room_type: "",
+  view_type: "",
+  size: "",
+  amenities: [],
+  features: [],
+  cancellation_policy: "",
+  is_active: true,
+  availability_status: "available",
+  featured: false,
+});
 
 const mockRooms: RoomRecord[] = [
   {
@@ -157,12 +242,14 @@ function badgeClass(status: RoomStatus) {
 function RoomModal({
   room,
   onClose,
+  onEdit,
 }: {
   room: RoomRecord;
   onClose: () => void;
+  onEdit: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto bg-white">
         <div className="bg-primary p-6 text-white">
           <div className="flex items-start justify-between gap-4">
@@ -229,6 +316,7 @@ function RoomModal({
           <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
             <button
               className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+              onClick={onEdit}
               type="button"
             >
               Edit Room
@@ -263,56 +351,1043 @@ function Detail({
   );
 }
 
+function InlineSpinner() {
+  return (
+    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+  );
+}
+
+function TagInput({
+  label,
+  value,
+  placeholder,
+  helpText,
+  onChange,
+}: {
+  label: string;
+  value: string[] | string;
+  placeholder: string;
+  helpText?: string;
+  onChange: (nextValue: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const tags = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : [];
+
+  function commitDraft() {
+    const nextTag = draft.trim();
+
+    if (!nextTag) return;
+
+    if (!tags.some((item) => item.toLowerCase() === nextTag.toLowerCase())) {
+      onChange([...tags, nextTag]);
+    }
+
+    setDraft("");
+  }
+
+  return (
+    <div className="lg:col-span-2">
+      <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+        {label}
+      </label>
+      <div className="border border-surface-container bg-white px-3 py-3">
+        <div className="flex flex-wrap gap-2">
+          {tags.map((item) => (
+            <button
+              key={item}
+              className="inline-flex items-center gap-2 rounded-full bg-surface-container px-3 py-1 font-body-md text-[13px] text-charred-wood transition-colors hover:bg-primary-fixed hover:text-primary"
+              onClick={() => onChange(tags.filter((current) => current !== item))}
+              type="button"
+            >
+              <span>{item}</span>
+              <span className="text-outline-clay">×</span>
+            </button>
+          ))}
+          <input
+            className="min-w-[180px] flex-1 bg-transparent px-1 py-1 font-body-md text-[14px] text-charred-wood outline-none"
+            onBlur={commitDraft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === ",") {
+                event.preventDefault();
+                commitDraft();
+              }
+              if (event.key === "Backspace" && !draft && tags.length > 0) {
+                onChange(tags.slice(0, -1));
+              }
+            }}
+            placeholder={tags.length === 0 ? placeholder : undefined}
+            value={draft}
+          />
+        </div>
+      </div>
+      <p className="mt-2 font-body-md text-[12px] text-outline-clay">
+        {helpText ?? "Press Enter or comma to add a tag."}
+      </p>
+    </div>
+  );
+}
+
+function SortableRoomImage({
+  image,
+  index,
+  onSetMainImage,
+  onRemoveImage,
+}: {
+  image: string;
+  index: number;
+  onSetMainImage: (index: number) => void;
+  onRemoveImage: (index: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: image,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative overflow-hidden border bg-surface-bone ${
+        index === 0 ? "border-primary" : "border-surface-container"
+      } ${isDragging ? "opacity-70" : ""}`}
+      onClick={() => onSetMainImage(index)}
+    >
+      <button
+        aria-label={`Drag room image ${index + 1}`}
+        className="absolute inset-0 z-[1] cursor-grab"
+        type="button"
+        {...attributes}
+        {...listeners}
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      />
+      <img
+        alt={`Room image ${index + 1}`}
+        className={`h-28 w-full object-cover transition-transform group-hover:scale-[1.02] ${
+          index === 0 ? "md:h-44" : ""
+        }`}
+        src={image}
+      />
+      <div className="absolute inset-x-0 bottom-0 z-[2] flex items-center justify-between bg-black/55 px-2 py-1 text-[11px] text-white">
+        <span>{index === 0 ? "Main" : `#${index + 1}`}</span>
+        <button
+          className="rounded bg-white/10 px-2 py-1 font-label-caps uppercase"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemoveImage(index);
+          }}
+          type="button"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RoomEditorModal({
+  form,
+  isLoading,
+  isSaving,
+  error,
+  imageUrlDraft,
+  isUploadingImages,
+  sensors,
+  mode,
+  onClose,
+  onSubmit,
+  onChange,
+  onAddImageUrl,
+  onImageUrlDraftChange,
+  onFilesSelected,
+  onSetMainImage,
+  onRemoveImage,
+  onDragEndImage,
+}: {
+  form: RoomFormState;
+  isLoading: boolean;
+  isSaving: boolean;
+  error: string | null;
+  imageUrlDraft: string;
+  isUploadingImages: boolean;
+  sensors: ReturnType<typeof useSensors>;
+  mode: "create" | "edit";
+  onClose: () => void;
+  onSubmit: () => void;
+  onChange: <K extends keyof RoomFormState>(field: K, value: RoomFormState[K]) => void;
+  onAddImageUrl: () => void;
+  onImageUrlDraftChange: (value: string) => void;
+  onFilesSelected: (files: FileList | null) => void;
+  onSetMainImage: (index: number) => void;
+  onRemoveImage: (index: number) => void;
+  onDragEndImage: (event: DragEndEvent) => void;
+}) {
+  const title = mode === "create" ? "Add New Room" : "Edit Room";
+  const mainImage = form.images[0];
+
+  return (
+    <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto bg-white shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
+        <div className="bg-primary p-6 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-eczar text-[28px] font-bold">{title}</h2>
+              <p className="mt-1 font-body-md text-sm text-white/80">
+                {mode === "create"
+                  ? "Create a new room record and publish it to the lodge inventory."
+                  : "Update the room record and persist the changes to the database."}
+              </p>
+            </div>
+            <button
+              aria-label="Close room editor"
+              className="text-white transition-colors hover:text-dry-grass"
+              onClick={onClose}
+              type="button"
+            >
+              <Icon name="close" className="text-[28px]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-6">
+          {isLoading ? (
+            <div className="rounded-sm border border-surface-container bg-surface-bone p-6 font-body-md text-[14px] text-on-surface-variant">
+              Loading room details...
+            </div>
+          ) : null}
+
+          <section className="grid gap-6 border-b border-surface-container pb-6 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+                <div className="mb-3 flex items-center justify-between">
+                  <label className="block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                    Room Images
+                  </label>
+                  <span className="font-body-md text-[12px] text-outline-clay">
+                    Drag to reorder, click to make main
+                  </span>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+                  <div className="overflow-hidden border border-surface-container bg-surface-bone">
+                  {mainImage ? (
+                    <img
+                      alt={form.name || "Room preview"}
+                      className="h-80 w-full object-cover"
+                      src={mainImage}
+                    />
+                  ) : (
+                    <div className="flex h-80 items-center justify-center px-6 text-center">
+                      <div>
+                        <div className="font-eczar text-[24px] font-bold text-charred-wood">
+                          Main room image
+                        </div>
+                        <p className="mt-2 font-body-md text-[14px] text-on-surface-variant">
+                          Upload the hero image first or choose one from the gallery below.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-sm border border-dashed border-surface-container bg-surface-bone p-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        accept="image/*"
+                        className="block w-full text-[14px] text-on-surface-variant file:mr-4 file:border-0 file:bg-primary file:px-4 file:py-2 file:font-label-caps file:text-[12px] file:font-bold file:uppercase file:text-white hover:file:bg-laterite-red"
+                        disabled={isUploadingImages || isSaving}
+                        multiple
+                        onChange={(event) => onFilesSelected(event.target.files)}
+                        type="file"
+                      />
+                      {isUploadingImages ? <InlineSpinner /> : null}
+                    </div>
+                    <p className="mt-2 font-body-md text-[12px] text-outline-clay">
+                      Upload images from your device. They will be used in the room gallery.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      className="min-w-0 flex-1 border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                      onChange={(event) => onImageUrlDraftChange(event.target.value)}
+                      placeholder="Paste image URL"
+                      value={imageUrlDraft}
+                    />
+                    <button
+                      className="bg-primary px-4 py-3 font-label-caps text-[12px] font-bold uppercase text-white transition-colors hover:bg-laterite-red disabled:cursor-not-allowed disabled:opacity-70"
+                      disabled={!imageUrlDraft.trim() || isUploadingImages || isSaving}
+                      onClick={onAddImageUrl}
+                      type="button"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {form.images.length > 0 ? (
+                    <div className="font-body-md text-[12px] text-outline-clay">
+                      {form.images.length} image{form.images.length === 1 ? "" : "s"} in gallery
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {form.images.length > 0 ? (
+                <DndContext
+                  collisionDetection={closestCenter}
+                  onDragEnd={onDragEndImage}
+                  sensors={sensors}
+                >
+                  <SortableContext items={form.images} strategy={rectSortingStrategy}>
+                    <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                      {form.images.map((image, index) => (
+                        <SortableRoomImage
+                          image={image}
+                          index={index}
+                          key={`${image}-${index}`}
+                          onRemoveImage={onRemoveImage}
+                          onSetMainImage={onSetMainImage}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              ) : null}
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Room Name
+              </label>
+              <input
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("name", event.target.value)}
+                placeholder="The Silt Suite"
+                value={form.name}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Slug
+              </label>
+              <input
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("slug", event.target.value)}
+                placeholder="the-silt-suite"
+                value={form.slug}
+              />
+              <p className="mt-2 font-body-md text-[12px] text-outline-clay">
+                Prefilled from the room name. You can adjust it if needed.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Room Type
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("room_type", event.target.value)}
+                value={form.room_type}
+              >
+                <option value="">Select room type</option>
+                <option value="Standard">Standard</option>
+                <option value="Suite">Suite</option>
+                <option value="Family Suite">Family Suite</option>
+                <option value="Premium">Premium</option>
+                <option value="Executive">Executive</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Bed Type
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("bed_type", event.target.value)}
+                value={form.bed_type}
+              >
+                <option value="">Select bed type</option>
+                <option value="King Bed">King Bed</option>
+                <option value="Queen Bed">Queen Bed</option>
+                <option value="Double Bed">Double Bed</option>
+                <option value="Twin Beds">Twin Beds</option>
+                <option value="Single Bed">Single Bed</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                View Type
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("view_type", event.target.value)}
+                value={form.view_type}
+              >
+                <option value="">Select view type</option>
+                <option value="Garden View">Garden View</option>
+                <option value="Pool View">Pool View</option>
+                <option value="City View">City View</option>
+                <option value="Mountain View">Mountain View</option>
+                <option value="Ocean View">Ocean View</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Size
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("size", event.target.value)}
+                value={form.size}
+              >
+                <option value="">Select room size</option>
+                <option value="24 sqm">24 sqm</option>
+                <option value="30 sqm">30 sqm</option>
+                <option value="38 sqm">38 sqm</option>
+                <option value="45 sqm">45 sqm</option>
+                <option value="52 sqm">52 sqm</option>
+                <option value="60 sqm">60 sqm</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Max Guests
+              </label>
+              <input
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                min={1}
+                onChange={(event) => onChange("max_guests", event.target.value)}
+                placeholder="2"
+                type="number"
+                value={form.max_guests}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Price Per Night
+              </label>
+              <input
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                min={0}
+                onChange={(event) => onChange("price_per_night", event.target.value)}
+                placeholder="650"
+                type="number"
+                value={form.price_per_night}
+              />
+            </div>
+          </section>
+
+          <section className="grid gap-6 border-b border-surface-container pb-6 lg:grid-cols-2">
+            <div className="lg:col-span-2">
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Description
+              </label>
+              <textarea
+                className="min-h-[120px] w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) => onChange("description", event.target.value)}
+                placeholder="Elegant suite with panoramic views..."
+                value={form.description}
+              />
+            </div>
+
+            <TagInput
+              helpText="Add as many amenities as you want. Press Enter or comma to add each one."
+              label="Amenities"
+              onChange={(nextValue) => onChange("amenities", nextValue)}
+              placeholder="Wi-Fi"
+              value={form.amenities}
+            />
+
+            <TagInput
+              helpText="Use these for room highlights or special selling points."
+              label="Features"
+              onChange={(nextValue) => onChange("features", nextValue)}
+              placeholder="Balcony"
+              value={form.features}
+            />
+
+            <div className="lg:col-span-2">
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Cancellation Policy
+              </label>
+              <textarea
+                className="min-h-[96px] w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) =>
+                  onChange("cancellation_policy", event.target.value)
+                }
+                placeholder="Free cancellation up to 24 hours before check-in."
+                value={form.cancellation_policy}
+              />
+            </div>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-3">
+            <div>
+              <label className="mb-2 block font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Availability Status
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) =>
+                  onChange("availability_status", event.target.value)
+                }
+                value={form.availability_status}
+              >
+                <option value="available">Available</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+            </div>
+
+            <label className="flex items-center gap-3 rounded-sm border border-surface-container px-4 py-4">
+              <input
+                checked={form.is_active}
+                className="h-4 w-4 accent-primary"
+                onChange={(event) => onChange("is_active", event.target.checked)}
+                type="checkbox"
+              />
+              <span className="font-body-md text-[14px] text-charred-wood">
+                Active room
+                <span className="block text-[12px] text-outline-clay">
+                  Visible on the site. Turn this off to hide the room from booking flow.
+                </span>
+              </span>
+            </label>
+
+            <label className="flex items-center gap-3 rounded-sm border border-surface-container px-4 py-4">
+              <input
+                checked={form.featured}
+                className="h-4 w-4 accent-primary"
+                onChange={(event) => onChange("featured", event.target.checked)}
+                type="checkbox"
+              />
+              <span className="font-body-md text-[14px] text-charred-wood">
+                Featured room
+                <span className="block text-[12px] text-outline-clay">
+                  Promoted on the home page and room highlights only.
+                </span>
+              </span>
+            </label>
+
+            <div className="rounded-sm border border-surface-container bg-surface-bone p-4 lg:col-span-1">
+              <p className="font-label-caps text-[12px] font-bold uppercase tracking-widest text-outline-clay">
+                Availability
+              </p>
+              <p className="mt-2 font-body-md text-[13px] text-on-surface-variant">
+                <strong>Available</strong> means guests can book it now.
+              </p>
+              <p className="mt-1 font-body-md text-[13px] text-on-surface-variant">
+                <strong>Maintenance</strong> or <strong>Unavailable</strong> keeps it out of booking flow.
+              </p>
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
+            <button
+              aria-busy={isSaving}
+              className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isSaving || isLoading}
+              onClick={onSubmit}
+              type="button"
+            >
+              <span className="inline-flex items-center justify-center gap-2">
+                {isSaving ? <InlineSpinner /> : null}
+                {isSaving
+                  ? "Saving..."
+                  : mode === "create"
+                    ? "Create Room"
+                    : "Save Changes"}
+              </span>
+            </button>
+            <button
+              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone"
+              onClick={onClose}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+          {error ? (
+            <div className="rounded-sm border border-red-200 bg-red-50 px-4 py-3 font-body-md text-[14px] text-red-800">
+              {error}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type AdminRoomsViewProps = {
   rooms?: AdminRoomRecord[];
 };
+
+function slugifyRoomName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function roomToFormState(room: RoomApiRecord): RoomFormState {
+  return {
+    id: room.id,
+    slug: room.slug,
+    name: room.name,
+    description: room.description,
+    images: room.images,
+    price_per_night: String(room.price_per_night),
+    bed_type: room.bed_type,
+    max_guests: String(room.max_guests),
+    room_type: room.room_type,
+    view_type: room.view_type,
+    size: room.size,
+    amenities: room.amenities,
+    features: room.features,
+    cancellation_policy: room.cancellation_policy ?? "",
+    is_active: room.is_active,
+    availability_status: room.availability_status,
+    featured: room.featured,
+  };
+}
+
+function isRoomApiRecord(value: unknown): value is RoomApiRecord {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.slug === "string" &&
+    typeof value.name === "string" &&
+    typeof value.description === "string" &&
+    typeof value.price_per_night === "number" &&
+    typeof value.bed_type === "string" &&
+    typeof value.max_guests === "number" &&
+    typeof value.room_type === "string" &&
+    typeof value.view_type === "string" &&
+    typeof value.size === "string" &&
+    Array.isArray(value.images) &&
+    Array.isArray(value.amenities) &&
+    Array.isArray(value.features) &&
+    typeof value.is_active === "boolean" &&
+    typeof value.availability_status === "string" &&
+    Array.isArray(value.availability_blocks) &&
+    typeof value.featured === "boolean"
+  );
+}
+
+function formStateToPayload(form: RoomFormState) {
+  return {
+    slug: form.slug.trim(),
+    name: form.name.trim(),
+    description: form.description.trim(),
+    images: form.images,
+    price_per_night: Number(form.price_per_night),
+    bed_type: form.bed_type.trim(),
+    max_guests: Number(form.max_guests),
+    room_type: form.room_type.trim(),
+    view_type: form.view_type.trim(),
+    size: form.size.trim(),
+    amenities: form.amenities.map((item) => item.trim()).filter(Boolean),
+    features: form.features.map((item) => item.trim()).filter(Boolean),
+    cancellation_policy: form.cancellation_policy.trim() || null,
+    is_active: form.is_active,
+    availability_status: form.availability_status,
+    featured: form.featured,
+  };
+}
 
 export function AdminRoomsView({
   rooms: roomsProp = mockRooms,
 }: AdminRoomsViewProps = {}) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [roomItems, setRoomItems] = useState<RoomRecord[]>(roomsProp);
   const [selectedRoom, setSelectedRoom] = useState<RoomRecord | null>(null);
-  const rooms = roomsProp;
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const [isLoadingRoom, setIsLoadingRoom] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [imageUrlDraft, setImageUrlDraft] = useState("");
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [form, setForm] = useState<RoomFormState>(emptyRoomForm());
+  const router = useRouter();
+  const pageSize = 6;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const filteredRooms = useMemo(() => {
-    return rooms.filter((room) => {
+    return roomItems.filter((room) => {
       const query = searchTerm.toLowerCase();
       return (
         room.name.toLowerCase().includes(query) ||
         room.type.toLowerCase().includes(query)
       );
     });
-  }, [rooms, searchTerm]);
+  }, [roomItems, searchTerm]);
+
+  const pageCount = Math.max(Math.ceil(filteredRooms.length / pageSize), 1);
+  const displayPage = Math.min(page, pageCount);
+
+  const paginatedRooms = useMemo(() => {
+    const start = (displayPage - 1) * pageSize;
+    return filteredRooms.slice(start, start + pageSize);
+  }, [displayPage, filteredRooms]);
+
+  function openCreateRoom() {
+    setEditorMode("create");
+    setEditorError(null);
+    setImageUrlDraft("");
+    setSlugTouched(false);
+    setForm(emptyRoomForm());
+    setEditorOpen(true);
+  }
+
+  async function openEditRoom(room: RoomRecord) {
+    setEditorMode("edit");
+    setEditorError(null);
+    setIsLoadingRoom(true);
+    setEditorOpen(true);
+
+    try {
+      const response = await fetch(`/api/rooms/${room.id}`);
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !isRoomApiRecord(payload)) {
+        const message =
+          isRecord(payload) && typeof payload.error === "string"
+            ? payload.error
+            : "Unable to load room details.";
+        throw new Error(message);
+      }
+
+      setForm(roomToFormState(payload));
+      setImageUrlDraft("");
+      setSlugTouched(true);
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : "Unable to load room details.");
+    } finally {
+      setIsLoadingRoom(false);
+    }
+  }
+
+  function moveImage(fromIndex: number, toIndex: number) {
+    setForm((currentForm) => {
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= currentForm.images.length ||
+        toIndex >= currentForm.images.length
+      ) {
+        return currentForm;
+      }
+
+      const nextImages = [...currentForm.images];
+      const [moved] = nextImages.splice(fromIndex, 1);
+      nextImages.splice(toIndex, 0, moved);
+
+      return {
+        ...currentForm,
+        images: nextImages,
+      };
+    });
+  }
+
+  function setMainImage(index: number) {
+    moveImage(index, 0);
+  }
+
+  function handleImageDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const fromIndex = form.images.findIndex((image) => image === active.id);
+    const toIndex = form.images.findIndex((image) => image === over.id);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      return;
+    }
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      images: arrayMove(currentForm.images, fromIndex, toIndex),
+    }));
+  }
+
+  async function readFilesAsDataUrls(files: FileList) {
+    const fileList = Array.from(files);
+
+    const readableFiles = fileList.filter((file) => file.type.startsWith("image/"));
+    if (readableFiles.length === 0) {
+      return [];
+    }
+
+    const results = await Promise.all(
+      readableFiles.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error(`Failed to read ${file.name}.`));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+
+    return results;
+  }
+
+  async function handleFilesSelected(files: FileList | null) {
+    if (!files || files.length === 0) return;
+
+    setIsUploadingImages(true);
+    setEditorError(null);
+
+    try {
+      const imageDataUrls = await readFilesAsDataUrls(files);
+      if (imageDataUrls.length === 0) return;
+
+      setForm((currentForm) => ({
+        ...currentForm,
+        images: [...currentForm.images, ...imageDataUrls],
+      }));
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : "Unable to upload images.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  }
+
+  function handleAddImageUrl() {
+    const nextUrl = imageUrlDraft.trim();
+    if (!nextUrl) return;
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      images: [...currentForm.images, nextUrl],
+    }));
+    setImageUrlDraft("");
+  }
+
+  function removeImage(index: number) {
+    setForm((currentForm) => ({
+      ...currentForm,
+      images: currentForm.images.filter((_, currentIndex) => currentIndex !== index),
+    }));
+  }
+
+  async function handleSaveRoom() {
+    setIsSaving(true);
+    setEditorError(null);
+
+    try {
+      const payload = formStateToPayload(form);
+      const slug = payload.slug || slugifyRoomName(payload.name);
+
+      if (!payload.name || !slug || !payload.description || !payload.bed_type || !payload.room_type || !payload.view_type || !payload.size || !payload.price_per_night || !payload.max_guests) {
+        throw new Error("Please complete all required room fields.");
+      }
+
+      const requestBody = {
+        ...payload,
+        slug,
+      };
+
+      const response = await fetch(
+        editorMode === "create" ? "/api/rooms" : `/api/rooms/${form.id}`,
+        {
+          method: editorMode === "create" ? "POST" : "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          isRecord(result) && typeof result.error === "string"
+            ? result.error
+            : "Unable to save room.";
+        throw new Error(message);
+      }
+
+      if (editorMode === "create") {
+        if (!isRoomApiRecord(result)) {
+          throw new Error("Unable to save room.");
+        }
+
+        const created = result;
+        setRoomItems((currentRooms) => [
+          {
+            id: created.id,
+            name: created.name,
+            type: created.room_type,
+            capacity: created.max_guests,
+            pricePerNight: created.price_per_night,
+            status: created.is_active && created.availability_status === "available" ? "Available" : "Maintenance",
+            amenities: created.amenities,
+            description: created.description,
+            totalBookings: 0,
+            currentOccupancy:
+              created.is_active && created.availability_status === "available"
+                ? "Vacant"
+                : "Under Maintenance",
+          },
+          ...currentRooms,
+        ]);
+      } else {
+        if (!isRoomApiRecord(result)) {
+          throw new Error("Unable to save room.");
+        }
+
+        const updated = result;
+        setRoomItems((currentRooms) =>
+          currentRooms.map((room) =>
+            room.id === updated.id
+              ? {
+                  id: updated.id,
+                  name: updated.name,
+                  type: updated.room_type,
+                  capacity: updated.max_guests,
+                  pricePerNight: updated.price_per_night,
+                  status:
+                    updated.is_active && updated.availability_status === "available"
+                      ? "Available"
+                      : "Maintenance",
+                  amenities: updated.amenities,
+                  description: updated.description,
+                  totalBookings: room.totalBookings,
+                  currentOccupancy:
+                    updated.is_active && updated.availability_status === "available"
+                      ? room.currentOccupancy === "Under Maintenance"
+                        ? "Vacant"
+                        : room.currentOccupancy
+                      : "Under Maintenance",
+                }
+              : room,
+          ),
+        );
+      }
+
+      setEditorOpen(false);
+      setForm(emptyRoomForm());
+      setImageUrlDraft("");
+      setSlugTouched(false);
+      router.refresh();
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : "Unable to save room.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteRoom(room: RoomRecord) {
+    const confirmed = window.confirm(
+      `Delete ${room.name}? This will permanently remove the room record.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingRoomId(room.id);
+      const response = await fetch(`/api/rooms/${room.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const message =
+          isRecord(payload) && typeof payload.error === "string"
+            ? payload.error
+            : "Unable to delete room.";
+        throw new Error(message);
+      }
+
+      setRoomItems((currentRooms) =>
+        currentRooms.filter((item) => item.id !== room.id),
+      );
+
+      if (selectedRoom?.id === room.id) {
+        setSelectedRoom(null);
+      }
+
+      router.refresh();
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : "Unable to delete room.");
+      setEditorOpen(true);
+    } finally {
+      setDeletingRoomId(null);
+    }
+  }
 
   return (
     <div>
       <PageHeader
         action={
-          <button className="inline-flex items-center gap-2 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red">
+          <button
+            className="inline-flex items-center gap-2 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+            onClick={openCreateRoom}
+            type="button"
+          >
             <Icon name="add" className="text-[18px]" />
             <span>Add New Room</span>
           </button>
         }
         description="Manage room inventory, pricing, and availability from one place."
         title="Rooms Management"
-      />
+      /> 
 
       <section className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
-        <MetricCard label="Total Rooms" value={rooms.length} />
+        <MetricCard label="Total Rooms" value={roomItems.length} />
         <MetricCard
           accentClassName="text-green-700"
           label="Available Rooms"
-          value={rooms.filter((room) => room.currentOccupancy === "Vacant").length}
+          value={roomItems.filter((room) => room.currentOccupancy === "Vacant").length}
         />
         <MetricCard
           accentClassName="text-blue-700"
           label="Occupied Rooms"
-          value={rooms.filter((room) => room.currentOccupancy === "Occupied").length}
+          value={roomItems.filter((room) => room.currentOccupancy === "Occupied").length}
         />
         <MetricCard
           accentClassName="text-amber-700"
           label="Under Maintenance"
-          value={rooms.filter((room) => room.status === "Maintenance").length}
+          value={roomItems.filter((room) => room.status === "Maintenance").length}
         />
       </section>
 
@@ -324,7 +1399,10 @@ export function AdminRoomsView({
           />
           <input
             className="w-full border border-surface-container bg-white py-3 pl-11 pr-4 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              setPage(1);
+            }}
             placeholder="Search rooms by name or type..."
             value={searchTerm}
           />
@@ -332,7 +1410,7 @@ export function AdminRoomsView({
       </section>
 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {filteredRooms.map((room) => (
+        {paginatedRooms.map((room) => (
           <article
             className="overflow-hidden border border-surface-container bg-white shadow-sm transition-shadow hover:shadow-md"
             key={room.id}
@@ -407,15 +1485,22 @@ export function AdminRoomsView({
                 </button>
                 <button
                   className="border border-surface-container bg-white px-4 py-3 text-primary transition-colors hover:bg-surface-bone"
+                  onClick={() => openEditRoom(room)}
                   type="button"
                 >
                   <Icon name="edit" className="text-[18px]" />
                 </button>
                 <button
-                  className="border border-red-300 bg-white px-4 py-3 text-red-700 transition-colors hover:bg-red-50"
+                  className="border border-red-300 bg-white px-4 py-3 text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={deletingRoomId === room.id}
+                  onClick={() => handleDeleteRoom(room)}
                   type="button"
                 >
-                  <Icon name="delete" className="text-[18px]" />
+                  {deletingRoomId === room.id ? (
+                    <InlineSpinner />
+                  ) : (
+                    <Icon name="delete" className="text-[18px]" />
+                  )}
                 </button>
               </div>
             </div>
@@ -423,10 +1508,67 @@ export function AdminRoomsView({
         ))}
       </section>
 
+      <AdminPagination
+        itemLabel="rooms"
+        onPageChange={setPage}
+        page={displayPage}
+        pageCount={pageCount}
+        pageSize={pageSize}
+        total={filteredRooms.length}
+      />
+
       {selectedRoom ? (
         <RoomModal
           onClose={() => setSelectedRoom(null)}
+          onEdit={() => openEditRoom(selectedRoom)}
           room={selectedRoom}
+        />
+      ) : null}
+
+      {editorOpen ? (
+        <RoomEditorModal
+          error={editorError}
+          form={form}
+          isLoading={isLoadingRoom}
+          isSaving={isSaving}
+          imageUrlDraft={imageUrlDraft}
+          isUploadingImages={isUploadingImages}
+          sensors={sensors}
+          mode={editorMode}
+          onChange={(field, value) => {
+            setForm((currentForm) => {
+              const nextForm = { ...currentForm, [field]: value };
+
+              if (
+                field === "name" &&
+                editorMode === "create" &&
+                !slugTouched &&
+                String(value).trim()
+              ) {
+                nextForm.slug = slugifyRoomName(String(value));
+              }
+
+              if (field === "slug") {
+                setSlugTouched(true);
+              }
+
+              return nextForm;
+            });
+          }}
+          onClose={() => {
+            setEditorOpen(false);
+            setEditorError(null);
+            setImageUrlDraft("");
+            setSlugTouched(false);
+            setForm(emptyRoomForm());
+          }}
+          onAddImageUrl={handleAddImageUrl}
+          onDragEndImage={handleImageDragEnd}
+          onFilesSelected={handleFilesSelected}
+          onImageUrlDraftChange={setImageUrlDraft}
+          onRemoveImage={removeImage}
+          onSetMainImage={setMainImage}
+          onSubmit={handleSaveRoom}
         />
       ) : null}
     </div>

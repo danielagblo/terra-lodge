@@ -364,6 +364,7 @@ export default function CheckoutView({
         body: JSON.stringify({
           booking_status: "cancelled",
           payment_status: "failed",
+          paystack_reference: completedReference,
         }),
         headers: {
           "Content-Type": "application/json",

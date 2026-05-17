@@ -3,6 +3,9 @@
 :root {
   --background: #fbf9f8;
   --foreground: #1b1c1c;
+  --scrollbar-track: #ece5df;
+  --scrollbar-thumb: #c7b1a0;
+  --scrollbar-thumb-hover: #a56d49;
 }
 
 @theme inline {
@@ -93,6 +96,39 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body-md), Arial, Helvetica, sans-serif;
+}
+
+html {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--scrollbar-thumb), var(--scrollbar-thumb-hover));
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scrollbar-thumb-hover), #8e5131);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
 }
 
 .material-symbols-outlined {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { serializeRoom } from "@/lib/db-serializers";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireAdminSession(request);
+  if (unauthorized) return unauthorized;
+
   const body = await request.json().catch(() => null);
   if (!isRecord(body)) {
     return badRequest("Invalid request body.");

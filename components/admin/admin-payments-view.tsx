@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Icon from "@/components/icon";
 import type { AdminPaymentRecord, AdminPaymentStat } from "@/lib/admin-data";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 
 type PaymentStatus = "Completed" | "Pending" | "Failed";
 
@@ -419,9 +420,11 @@ export function AdminPaymentsView({
     "all" | "completed" | "pending" | "failed"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(
     null,
   );
+  const pageSize = 5;
   const payments = paymentsProp;
   const stats = statsProp;
   const revenueTrend = revenueTrendProp;
@@ -440,6 +443,14 @@ export function AdminPaymentsView({
       return matchesFilter && matchesSearch;
     });
   }, [payments, searchTerm, selectedFilter]);
+
+  const pageCount = Math.max(Math.ceil(filteredPayments.length / pageSize), 1);
+  const displayPage = Math.min(page, pageCount);
+
+  const paginatedPayments = useMemo(() => {
+    const start = (displayPage - 1) * pageSize;
+    return filteredPayments.slice(start, start + pageSize);
+  }, [displayPage, filteredPayments]);
 
   return (
     <div>
@@ -521,7 +532,10 @@ export function AdminPaymentsView({
             />
             <input
               className="w-full border border-surface-container bg-white py-3 pl-11 pr-4 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setPage(1);
+              }}
               placeholder="Search by guest name, payment ID, or transaction reference..."
               value={searchTerm}
             />
@@ -539,7 +553,10 @@ export function AdminPaymentsView({
                       : "border border-surface-container bg-white text-on-surface-variant hover:bg-surface-bone"
                   }`}
                   key={filter}
-                  onClick={() => setSelectedFilter(filter as typeof selectedFilter)}
+                  onClick={() => {
+                    setSelectedFilter(filter as typeof selectedFilter);
+                    setPage(1);
+                  }}
                   type="button"
                 >
                   <Icon
@@ -588,7 +605,7 @@ export function AdminPaymentsView({
               </tr>
             </thead>
             <tbody>
-              {filteredPayments.map((payment) => (
+              {paginatedPayments.map((payment) => (
                 <tr
                   className="border-b border-surface-container transition-colors hover:bg-surface-bone"
                   key={payment.id}
@@ -616,7 +633,7 @@ export function AdminPaymentsView({
                     </p>
                   </td>
                   <td className="px-4 py-4 font-body-md text-[14px] font-bold text-primary">
-                    GH₵ {payment.amount.toLocaleString()}
+                    GHS {payment.amount.toLocaleString()}
                   </td>
                   <td className="px-4 py-4 font-body-md text-[14px] text-on-surface-variant">
                     {payment.date}
@@ -644,6 +661,15 @@ export function AdminPaymentsView({
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          itemLabel="payments"
+          onPageChange={setPage}
+          page={displayPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          total={filteredPayments.length}
+        />
       </section>
 
       {selectedPayment ? (

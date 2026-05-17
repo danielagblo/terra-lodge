@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { serializeBooking, type BookingDbRow } from "@/lib/db-serializers";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ bookingId: string }> },
 ) {
+  const unauthorized = await requireAdminSession(request);
+  if (unauthorized) return unauthorized;
+
   const { bookingId } = await params;
   const result = await query(`select * from bookings where id = $1`, [
     bookingId,
@@ -38,6 +42,8 @@ export async function PATCH(
     return badRequest("Invalid request body.");
   }
 
+  const adminAuth = await requireAdminSession(request);
+
   const allowedKeys = [
     "guest_name",
     "guest_email",
@@ -57,6 +63,43 @@ export async function PATCH(
   const updates = allowedKeys.filter((key) => key in body);
   if (updates.length === 0) {
     return badRequest("No updatable fields were provided.");
+  }
+
+  if (adminAuth) {
+    const existing = await query(
+      `select id, paystack_reference, payment_status, booking_status
+       from bookings
+       where id = $1`,
+      [bookingId],
+    );
+
+    if (existing.rowCount === 0) {
+      return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+    }
+
+    const booking = existing.rows[0] as {
+      paystack_reference: string | null;
+      payment_status: string;
+      booking_status: string;
+    };
+
+    const reference = typeof body.paystack_reference === "string" ? body.paystack_reference : "";
+    const requestedBookingStatus =
+      typeof body.booking_status === "string" ? body.booking_status.toLowerCase() : "";
+    const requestedPaymentStatus =
+      typeof body.payment_status === "string" ? body.payment_status.toLowerCase() : "";
+
+    const publicUpdateAllowed =
+      reference &&
+      booking.paystack_reference &&
+      reference === booking.paystack_reference &&
+      booking.payment_status.toLowerCase() !== "paid" &&
+      requestedBookingStatus === "cancelled" &&
+      requestedPaymentStatus === "failed";
+
+    if (!publicUpdateAllowed) {
+      return adminAuth;
+    }
   }
 
   const setClauses = updates.map((key, index) => {
@@ -85,9 +128,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ bookingId: string }> },
 ) {
+  const unauthorized = await requireAdminSession(request);
+  if (unauthorized) return unauthorized;
+
   const { bookingId } = await params;
   const result = await query(`delete from bookings where id = $1 returning id`, [
     bookingId,

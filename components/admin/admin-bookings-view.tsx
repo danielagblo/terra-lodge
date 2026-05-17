@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import Icon from "@/components/icon";
-import type { AdminBookingRecord } from "@/lib/admin-data";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 
 type BookingStatus = "Confirmed" | "Pending" | "Cancelled";
 type PaymentStatus = "Paid" | "Pending" | "Refunded";
@@ -321,9 +321,11 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
     "all" | "confirmed" | "pending" | "cancelled"
   >("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(
     null,
   );
+  const pageSize = 5;
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -338,6 +340,15 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
       return matchesFilter && matchesSearch;
     });
   }, [bookings, searchTerm, selectedFilter]);
+
+  const pageCount = Math.max(Math.ceil(filteredBookings.length / pageSize), 1);
+
+  const displayPage = Math.min(page, pageCount);
+
+  const paginatedBookings = useMemo(() => {
+    const start = (displayPage - 1) * pageSize;
+    return filteredBookings.slice(start, start + pageSize);
+  }, [displayPage, filteredBookings]);
 
   return (
     <div>
@@ -375,7 +386,10 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
             />
             <input
               className="w-full border border-surface-container bg-white py-3 pl-11 pr-4 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setPage(1);
+              }}
               placeholder="Search by guest name, booking ID, or room..."
               value={searchTerm}
             />
@@ -393,7 +407,10 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
                       : "border border-surface-container bg-white text-on-surface-variant hover:bg-surface-bone"
                   }`}
                   key={filter}
-                  onClick={() => setSelectedFilter(filter)}
+                  onClick={() => {
+                    setSelectedFilter(filter);
+                    setPage(1);
+                  }}
                   type="button"
                 >
                   <Icon
@@ -443,7 +460,7 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
               </tr>
             </thead>
             <tbody>
-              {filteredBookings.map((booking) => (
+              {paginatedBookings.map((booking) => (
                 <tr
                   className="border-b border-surface-container transition-colors hover:bg-surface-bone"
                   key={booking.id}
@@ -513,6 +530,15 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          itemLabel="bookings"
+          onPageChange={setPage}
+          page={displayPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          total={filteredBookings.length}
+        />
       </section>
 
       {selectedBooking ? (

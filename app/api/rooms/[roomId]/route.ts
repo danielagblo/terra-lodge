@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { serializeRoom, type RoomDbRow } from "@/lib/db-serializers";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ roomId: string }> },
 ) {
+  const unauthorized = await requireAdminSession(request);
+  if (unauthorized) return unauthorized;
+
   const { roomId } = await params;
   const body = await request.json().catch(() => null);
   if (!isRecord(body)) {
@@ -95,9 +99,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ roomId: string }> },
 ) {
+  const unauthorized = await requireAdminSession(request);
+  if (unauthorized) return unauthorized;
+
   const { roomId } = await params;
   const result = await query(`delete from rooms where id = $1 returning id`, [
     roomId,

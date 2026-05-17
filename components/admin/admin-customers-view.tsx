@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Icon from "@/components/icon";
 import type { AdminCustomerRecord } from "@/lib/admin-data";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 
 type CustomerStatus = "Active" | "VIP" | "Inactive";
 
@@ -261,9 +262,11 @@ type AdminCustomersViewProps = {
 
 function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersViewProps = {}) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(
     null,
   );
+  const pageSize = 5;
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
@@ -275,6 +278,15 @@ function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersView
       );
     });
   }, [customers, searchTerm]);
+
+  const pageCount = Math.max(Math.ceil(filteredCustomers.length / pageSize), 1);
+
+  const displayPage = Math.min(page, pageCount);
+
+  const paginatedCustomers = useMemo(() => {
+    const start = (displayPage - 1) * pageSize;
+    return filteredCustomers.slice(start, start + pageSize);
+  }, [displayPage, filteredCustomers]);
 
   return (
     <div>
@@ -310,7 +322,10 @@ function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersView
           />
           <input
             className="w-full border border-surface-container bg-white py-3 pl-11 pr-4 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              setPage(1);
+            }}
             placeholder="Search by name, email, or phone number..."
             value={searchTerm}
           />
@@ -341,7 +356,7 @@ function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersView
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((customer) => (
+              {paginatedCustomers.map((customer) => (
                 <tr
                   className="border-b border-surface-container transition-colors hover:bg-surface-bone"
                   key={customer.id}
@@ -395,6 +410,15 @@ function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersView
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          itemLabel="customers"
+          onPageChange={setPage}
+          page={displayPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          total={filteredCustomers.length}
+        />
       </section>
 
       {selectedCustomer ? (
