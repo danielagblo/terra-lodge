@@ -155,15 +155,17 @@ function SuccessModal({
   onClose,
   reference,
   roomId,
+  whatsappHref,
 }: {
   onClose: () => void;
   reference: string;
   roomId: string | number;
+  whatsappHref: string;
 }) {
   return (
     <ModalShell
       icon={<Icon name="check" className="text-3xl" />}
-      message={siteContent.checkout.successMessage}
+      message={`${siteContent.checkout.successMessage} You can also open your confirmation on WhatsApp.`}
       onClose={onClose}
       primaryAction={
         <Link
@@ -178,16 +180,18 @@ function SuccessModal({
       primaryLabel="View My Booking"
       reference={reference}
       secondaryAction={
-        <Link
+        <a
           className="flex-1 bg-white border-2 border-primary px-6 py-4 cursor-pointer hover:bg-surface-bone transition-colors text-center"
-          href="/"
+          href={whatsappHref}
+          rel="noreferrer"
+          target="_blank"
         >
           <span className="font-label-caps text-sm font-bold text-primary uppercase">
-            Return to Home
+            View on WhatsApp
           </span>
-        </Link>
+        </a>
       }
-      secondaryLabel="Return to Home"
+      secondaryLabel="View on WhatsApp"
       title="Booking Confirmed"
     />
   );
@@ -300,6 +304,31 @@ export default function CheckoutView({
   );
   const subtotal = room.priceValue * nights * booking.rooms;
   const bookingReference = completedReference || "";
+  const whatsappHref = useMemo(() => {
+    const message = [
+      "Hello Terra Lodge, I just completed my booking.",
+      "",
+      `Booking Code: ${bookingReference || "Pending"}`,
+      `Guest: ${guestInfo.fullName || "Not provided"}`,
+      `Room: ${room.name}`,
+      `Check-in: ${formatDate(booking.checkIn)}`,
+      `Check-out: ${formatDate(booking.checkOut)}`,
+      `Guests: ${booking.guests}`,
+      `Rooms: ${booking.rooms}`,
+      `Total: GHS ${subtotal.toLocaleString()}`,
+    ].join("\n");
+
+    return `https://wa.me/${siteContent.contact.whatsappDial}?text=${encodeURIComponent(message)}`;
+  }, [
+    booking.checkIn,
+    booking.checkOut,
+    booking.guests,
+    booking.rooms,
+    bookingReference,
+    guestInfo.fullName,
+    room.name,
+    subtotal,
+  ]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = event.target;
@@ -656,6 +685,7 @@ export default function CheckoutView({
           onClose={() => setModalInUrl(null)}
           reference={bookingReference}
           roomId={room.id}
+          whatsappHref={whatsappHref}
         />
       ) : null}
       {activeModal === "failed" ? (

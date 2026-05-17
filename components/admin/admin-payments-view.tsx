@@ -1,0 +1,657 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import Icon from "@/components/icon";
+import type { AdminPaymentRecord, AdminPaymentStat } from "@/lib/admin-data";
+
+type PaymentStatus = "Completed" | "Pending" | "Failed";
+
+type PaymentRecord = {
+  id: string;
+  bookingId: string;
+  guestName: string;
+  guestEmail: string;
+  amount: number;
+  method: string;
+  provider: string;
+  status: PaymentStatus;
+  date: string;
+  transactionRef: string;
+  room: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+};
+
+type PaymentStat = {
+  label: string;
+  value: string;
+  icon: string;
+  color: string;
+  change: string;
+};
+
+const mockStats: PaymentStat[] = [
+  {
+    label: "Total Revenue",
+    value: "GH₵ 45,280",
+    icon: "payments",
+    color: "#4a1e00",
+    change: "+12.5%",
+  },
+  {
+    label: "Completed Payments",
+    value: "142",
+    icon: "check_circle",
+    color: "#16a34a",
+    change: "+8.2%",
+  },
+  {
+    label: "Pending Payments",
+    value: "23",
+    icon: "schedule",
+    color: "#f59e0b",
+    change: "-3.1%",
+  },
+  {
+    label: "Failed Payments",
+    value: "5",
+    icon: "cancel",
+    color: "#ef4444",
+    change: "-15.3%",
+  },
+];
+
+const mockPayments: PaymentRecord[] = [
+  {
+    id: "PAY-2024-1234",
+    bookingId: "BK-1234",
+    guestName: "Kwame Mensah",
+    guestEmail: "kwame.mensah@email.com",
+    amount: 650,
+    method: "Mobile Money",
+    provider: "MTN MoMo",
+    status: "Completed",
+    date: "2026-05-17 10:30 AM",
+    transactionRef: "MTN-45678912",
+    room: "The Silt Suite",
+    checkIn: "2026-05-20",
+    checkOut: "2026-05-23",
+    nights: 3,
+  },
+  {
+    id: "PAY-2024-1235",
+    bookingId: "BK-1235",
+    guestName: "Ama Owusu",
+    guestEmail: "ama.owusu@email.com",
+    amount: 500,
+    method: "Card",
+    provider: "Visa",
+    status: "Pending",
+    date: "2026-05-17 09:15 AM",
+    transactionRef: "CARD-78945612",
+    room: "Basalt Retreat",
+    checkIn: "2026-05-21",
+    checkOut: "2026-05-24",
+    nights: 3,
+  },
+  {
+    id: "PAY-2024-1236",
+    bookingId: "BK-1236",
+    guestName: "Kofi Asante",
+    guestEmail: "kofi.asante@email.com",
+    amount: 800,
+    method: "Mobile Money",
+    provider: "Vodafone Cash",
+    status: "Completed",
+    date: "2026-05-16 03:45 PM",
+    transactionRef: "VODA-32165498",
+    room: "Lodge Suite",
+    checkIn: "2026-05-22",
+    checkOut: "2026-05-25",
+    nights: 3,
+  },
+  {
+    id: "PAY-2024-1237",
+    bookingId: "BK-1237",
+    guestName: "Efua Boateng",
+    guestEmail: "efua.boateng@email.com",
+    amount: 650,
+    method: "Bank Transfer",
+    provider: "GCB Bank",
+    status: "Completed",
+    date: "2026-05-16 11:20 AM",
+    transactionRef: "BANK-65498732",
+    room: "The Silt Suite",
+    checkIn: "2026-05-23",
+    checkOut: "2026-05-26",
+    nights: 3,
+  },
+  {
+    id: "PAY-2024-1238",
+    bookingId: "BK-1238",
+    guestName: "Yaw Osei",
+    guestEmail: "yaw.osei@email.com",
+    amount: 1200,
+    method: "Card",
+    provider: "Mastercard",
+    status: "Failed",
+    date: "2026-05-15 02:30 PM",
+    transactionRef: "CARD-98765432",
+    room: "Premium Suite",
+    checkIn: "2026-05-25",
+    checkOut: "2026-05-28",
+    nights: 3,
+  },
+  {
+    id: "PAY-2024-1239",
+    bookingId: "BK-1239",
+    guestName: "Akua Mensah",
+    guestEmail: "akua.mensah@email.com",
+    amount: 500,
+    method: "Mobile Money",
+    provider: "AirtelTigo Money",
+    status: "Completed",
+    date: "2026-05-15 10:00 AM",
+    transactionRef: "ATIGO-15935782",
+    room: "Basalt Retreat",
+    checkIn: "2026-05-26",
+    checkOut: "2026-05-29",
+    nights: 3,
+  },
+  {
+    id: "PAY-2024-1240",
+    bookingId: "BK-1240",
+    guestName: "Kwabena Adjei",
+    guestEmail: "kwabena.adjei@email.com",
+    amount: 650,
+    method: "Card",
+    provider: "Visa",
+    status: "Pending",
+    date: "2026-05-14 04:15 PM",
+    transactionRef: "CARD-74185296",
+    room: "The Silt Suite",
+    checkIn: "2026-05-27",
+    checkOut: "2026-05-30",
+    nights: 3,
+  },
+];
+
+const mockRevenueTrend = [
+  { month: "Jan", revenue: 4200 },
+  { month: "Feb", revenue: 3800 },
+  { month: "Mar", revenue: 5100 },
+  { month: "Apr", revenue: 4600 },
+  { month: "May", revenue: 5400 },
+  { month: "Jun", revenue: 4800 },
+];
+
+const mockStatusData = [
+  { label: "Completed", count: 45 },
+  { label: "Pending", count: 35 },
+  { label: "Failed", count: 12 },
+];
+
+function PageHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action: ReactNode;
+}) {
+  return (
+    <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <span className="font-label-caps text-xs font-bold uppercase tracking-widest text-laterite-red">
+          Admin Management
+        </span>
+        <h1 className="mt-2 font-eczar text-[36px] font-bold text-charred-wood">
+          {title}
+        </h1>
+        <p className="mt-2 max-w-2xl font-body-md text-[14px] leading-relaxed text-on-surface-variant">
+          {description}
+        </p>
+      </div>
+      {action}
+    </header>
+  );
+}
+
+function StatTile({ stat }: { stat: PaymentStat }) {
+  const isPositive = stat.change.startsWith("+");
+
+  return (
+    <div className="border border-surface-container bg-white p-6">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-primary-fixed">
+          <Icon name={stat.icon} className="text-[24px]" filled />
+        </div>
+        <span
+          className={`font-label-caps text-[12px] font-bold ${
+            isPositive ? "text-green-700" : "text-red-700"
+          }`}
+        >
+          {stat.change}
+        </span>
+      </div>
+      <div className="mb-1 font-nimbus text-[28px] font-bold text-charred-wood">
+        {stat.value}
+      </div>
+      <p className="font-body-md text-[14px] text-outline-clay">{stat.label}</p>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border border-surface-container bg-white p-6">
+      <h2 className="mb-6 font-eczar text-[20px] font-bold text-charred-wood">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function Detail({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <p className="mb-1 font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+        {label}
+      </p>
+      <p className="font-body-md text-[14px] text-charred-wood">{value}</p>
+    </div>
+  );
+}
+
+function statusClass(status: PaymentStatus) {
+  switch (status.toLowerCase()) {
+    case "completed":
+      return "bg-green-100 text-green-800";
+    case "pending":
+      return "bg-amber-100 text-amber-800";
+    case "failed":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-surface-container text-outline-clay";
+  }
+}
+
+function statusIcon(status: PaymentStatus) {
+  switch (status.toLowerCase()) {
+    case "completed":
+      return <Icon name="check_circle" className="text-[16px]" filled />;
+    case "pending":
+      return <Icon name="schedule" className="text-[16px]" />;
+    case "failed":
+      return <Icon name="error" className="text-[16px]" />;
+    default:
+      return null;
+  }
+}
+
+function PaymentModal({
+  payment,
+  onClose,
+}: {
+  payment: PaymentRecord;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto bg-white">
+        <div className="bg-primary p-6 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-eczar text-[28px] font-bold">
+                Payment Details
+              </h2>
+              <p className="mt-1 font-body-md text-sm">{payment.id}</p>
+            </div>
+            <button
+              aria-label="Close payment details"
+              className="text-white transition-colors hover:text-dry-grass"
+              onClick={onClose}
+              type="button"
+            >
+              <Icon name="close" className="text-[28px]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <Section title="Guest Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Detail label="Name" value={payment.guestName} />
+              <Detail label="Email" value={payment.guestEmail} />
+            </div>
+          </Section>
+
+          <Section title="Booking Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Detail label="Booking ID" value={payment.bookingId} />
+              <Detail label="Room" value={payment.room} />
+              <Detail label="Check-In" value={payment.checkIn} />
+              <Detail label="Check-Out" value={payment.checkOut} />
+              <Detail label="Nights" value={String(payment.nights)} />
+            </div>
+          </Section>
+
+          <Section title="Payment Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Detail label="Payment Method" value={payment.method} />
+              <Detail label="Provider" value={payment.provider} />
+              <Detail label="Transaction Reference" value={payment.transactionRef} />
+              <Detail label="Date & Time" value={payment.date} />
+              <div>
+                <p className="mb-1 font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+                  Status
+                </p>
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold ${statusClass(payment.status)}`}
+                >
+                  {statusIcon(payment.status)}
+                  {payment.status}
+                </span>
+              </div>
+              <Detail label="Amount" value={`GH₵ ${payment.amount.toLocaleString()}`} />
+            </div>
+          </Section>
+
+          <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
+            {payment.status === "Pending" ? (
+              <button
+                className="flex-1 bg-green-600 px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-green-700"
+                type="button"
+              >
+                Confirm Payment
+              </button>
+            ) : null}
+            {payment.status === "Failed" ? (
+              <button
+                className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+                type="button"
+              >
+                Retry Payment
+              </button>
+            ) : null}
+            <button
+              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone"
+              type="button"
+            >
+              Download Receipt
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type AdminPaymentsViewProps = {
+  payments?: AdminPaymentRecord[];
+  stats?: AdminPaymentStat[];
+  revenueTrend?: Array<{ month: string; revenue: number }>;
+  statusData?: Array<{ label: string; count: number }>;
+};
+
+export function AdminPaymentsView({
+  payments: paymentsProp = mockPayments,
+  stats: statsProp = mockStats,
+  revenueTrend: revenueTrendProp = mockRevenueTrend,
+  statusData: statusDataProp = mockStatusData,
+}: AdminPaymentsViewProps = {}) {
+  const [selectedFilter, setSelectedFilter] = useState<
+    "all" | "completed" | "pending" | "failed"
+  >("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(
+    null,
+  );
+  const payments = paymentsProp;
+  const stats = statsProp;
+  const revenueTrend = revenueTrendProp;
+  const statusData = statusDataProp;
+
+  const filteredPayments = useMemo(() => {
+    return payments.filter((payment) => {
+      const matchesFilter =
+        selectedFilter === "all" ||
+        payment.status.toLowerCase() === selectedFilter;
+      const matchesSearch =
+        payment.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.transactionRef.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [payments, searchTerm, selectedFilter]);
+
+  return (
+    <div>
+      <PageHeader
+        action={
+          <button className="inline-flex items-center gap-2 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red">
+            <Icon name="download" className="text-[18px]" />
+            <span>Export Report</span>
+          </button>
+        }
+        description="Track transactions, payment states, and revenue performance for Terra Lodge."
+        title="Payments"
+      />
+
+      <section className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <StatTile key={stat.label} stat={stat} />
+        ))}
+      </section>
+
+      <section className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Section title="Revenue Trend">
+          <div className="flex h-[240px] items-end gap-4 border-b border-l border-surface-container pb-4 pl-4">
+            {revenueTrend.map((point) => {
+              const maxRevenue = Math.max(...revenueTrend.map((item) => item.revenue));
+              const height = Math.max((point.revenue / maxRevenue) * 100, 8);
+
+              return (
+                <div
+                  className="flex flex-1 flex-col items-center justify-end gap-3"
+                  key={point.month}
+                >
+                  <div className="flex h-[180px] w-full items-end justify-center">
+                    <div
+                      className="w-full max-w-[42px] rounded-t-sm bg-primary"
+                      style={{ height: `${height}%` }}
+                    />
+                  </div>
+                  <span className="font-body-md text-[12px] text-outline-clay">
+                    {point.month}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+
+        <Section title="Payment Status Breakdown">
+          <div className="space-y-4">
+            {statusData.map((method) => {
+              const maxCount = Math.max(...statusData.map((item) => item.count), 1);
+              const width = Math.max((method.count / maxCount) * 100, 12);
+
+              return (
+                <div key={method.label}>
+                  <div className="mb-2 flex items-center justify-between font-body-md text-[14px] text-charred-wood">
+                    <span>{method.label}</span>
+                    <span className="font-bold">{method.count}</span>
+                  </div>
+                  <div className="h-3 overflow-hidden bg-surface-bone">
+                    <div
+                      className="h-full bg-primary"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      </section>
+
+      <section className="mb-6 border border-surface-container bg-white p-6">
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="relative flex-1">
+            <Icon
+              name="search"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-outline-clay"
+            />
+            <input
+              className="w-full border border-surface-container bg-white py-3 pl-11 pr-4 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by guest name, payment ID, or transaction reference..."
+              value={searchTerm}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {["all", "completed", "pending", "failed"].map((filter) => {
+              const active = selectedFilter === filter;
+
+              return (
+                <button
+                  className={`inline-flex items-center gap-2 rounded-sm px-4 py-3 font-label-caps text-sm font-bold uppercase transition-colors ${
+                    active
+                      ? "bg-primary text-white"
+                      : "border border-surface-container bg-white text-on-surface-variant hover:bg-surface-bone"
+                  }`}
+                  key={filter}
+                  onClick={() => setSelectedFilter(filter as typeof selectedFilter)}
+                  type="button"
+                >
+                  <Icon
+                    name={
+                      filter === "all"
+                        ? "filter_alt"
+                        : filter === "completed"
+                          ? "check_circle"
+                          : filter === "pending"
+                            ? "schedule"
+                            : "cancel"
+                    }
+                    className="text-[18px]"
+                    filled={active && filter !== "all"}
+                  />
+                  <span>{filter}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border border-surface-container bg-white">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="bg-surface-bone">
+              <tr className="border-b border-surface-container">
+                {[
+                  "Payment ID",
+                  "Guest",
+                  "Room",
+                  "Method",
+                  "Amount",
+                  "Date",
+                  "Status",
+                  "Actions",
+                ].map((heading) => (
+                  <th
+                    className="px-4 py-4 text-left font-label-caps text-[12px] font-bold uppercase tracking-wider text-outline-clay"
+                    key={heading}
+                  >
+                    {heading}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPayments.map((payment) => (
+                <tr
+                  className="border-b border-surface-container transition-colors hover:bg-surface-bone"
+                  key={payment.id}
+                >
+                  <td className="px-4 py-4 font-body-md text-[14px] font-medium text-charred-wood">
+                    {payment.id}
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="font-body-md text-[14px] font-bold text-charred-wood">
+                      {payment.guestName}
+                    </p>
+                    <p className="font-body-md text-[12px] text-outline-clay">
+                      {payment.guestEmail}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 font-body-md text-[14px] text-on-surface-variant">
+                    {payment.room}
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="font-body-md text-[14px] text-charred-wood">
+                      {payment.method}
+                    </p>
+                    <p className="font-body-md text-[12px] text-outline-clay">
+                      {payment.provider}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 font-body-md text-[14px] font-bold text-primary">
+                    GH₵ {payment.amount.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-4 font-body-md text-[14px] text-on-surface-variant">
+                    {payment.date}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold ${statusClass(payment.status)}`}
+                    >
+                      {statusIcon(payment.status)}
+                      {payment.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <button
+                      aria-label={`View payment ${payment.id}`}
+                      className="text-primary transition-colors hover:text-laterite-red"
+                      onClick={() => setSelectedPayment(payment)}
+                      type="button"
+                    >
+                      <Icon name="visibility" className="text-[20px]" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {selectedPayment ? (
+        <PaymentModal
+          onClose={() => setSelectedPayment(null)}
+          payment={selectedPayment}
+        />
+      ) : null}
+    </div>
+  );
+}
