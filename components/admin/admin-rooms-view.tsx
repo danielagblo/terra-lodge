@@ -53,7 +53,7 @@ type RoomApiRecord = {
   size: string;
   images: string[];
   amenities: string[];
-  features: string[];
+  features: unknown[];
   cancellation_policy: string | null;
   is_active: boolean;
   availability_status: string;
@@ -63,6 +63,25 @@ type RoomApiRecord = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .flatMap((item) => {
+      if (typeof item === "string") {
+        return [item];
+      }
+
+      if (isRecord(item) && typeof item.label === "string") {
+        return [item.label];
+      }
+
+      return [];
+    })
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 type RoomFormState = {
@@ -286,7 +305,7 @@ function RoomModal({
           <section className="border-y border-surface-container py-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <Detail label="Capacity" value={`${room.capacity} Guests`} />
-              <Detail label="Price Per Night" value={`GH₵ ${room.pricePerNight}`} />
+              <Detail label="Price Per Night" value={`GHS ${room.pricePerNight}`} />
               <Detail label="Status" value={room.status} />
               <Detail label="Current Occupancy" value={room.currentOccupancy} />
             </div>
@@ -370,20 +389,13 @@ function TagInput({
   onChange,
 }: {
   label: string;
-  value: string[] | string;
+  value: string[];
   placeholder: string;
   helpText?: string;
   onChange: (nextValue: string[]) => void;
 }) {
   const [draft, setDraft] = useState("");
-  const tags = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? value
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : [];
+  const tags = value;
 
   function commitDraft() {
     const nextTag = draft.trim();
@@ -412,7 +424,7 @@ function TagInput({
               type="button"
             >
               <span>{item}</span>
-              <span className="text-outline-clay">×</span>
+              <span className="text-outline-clay">x</span>
             </button>
           ))}
           <input
@@ -976,8 +988,8 @@ function roomToFormState(room: RoomApiRecord): RoomFormState {
     room_type: room.room_type,
     view_type: room.view_type,
     size: room.size,
-    amenities: room.amenities,
-    features: room.features,
+    amenities: toStringList(room.amenities),
+    features: toStringList(room.features),
     cancellation_policy: room.cancellation_policy ?? "",
     is_active: room.is_active,
     availability_status: room.availability_status,
@@ -1486,7 +1498,7 @@ export function AdminRoomsView({
 
               <div className="grid grid-cols-2 gap-3">
                 <Detail label="Capacity" value={`${room.capacity} Guests`} />
-                <Detail label="Price/Night" value={`GH₵ ${room.pricePerNight}`} />
+                <Detail label="Price/Night" value={`GHS ${room.pricePerNight}`} />
               </div>
 
               <div>
