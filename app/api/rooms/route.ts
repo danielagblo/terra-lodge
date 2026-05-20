@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     ],
   );
 
-  revalidateTag(ROOMS_CACHE_TAG);
+  revalidateTag(ROOMS_CACHE_TAG, "max");
 
   return NextResponse.json(
     serializeRoom(result.rows[0] as Parameters<typeof serializeRoom>[0]),

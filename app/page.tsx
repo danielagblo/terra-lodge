@@ -10,6 +10,8 @@ import {
 import { getRooms } from "@/lib/room-data";
 import { siteContent } from "@/lib/site-content";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: `${siteContent.brand.name} | ${siteContent.brand.tagline}`,
   description: siteContent.brand.description,

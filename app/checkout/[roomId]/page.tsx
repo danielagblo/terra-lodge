@@ -96,7 +96,7 @@ export default async function CheckoutPage({
 
   return (
     <CheckoutView
-      bookingConflict={conflict.rowCount > 0}
+      bookingConflict={(conflict.rowCount ?? 0) > 0}
       initialBooking={{
         checkIn: bookingDates.checkIn,
         checkOut: bookingDates.checkOut,

@@ -30,7 +30,7 @@ export async function GET(
     return NextResponse.json({ error: "Room not found." }, { status: 404 });
   }
 
-  revalidateTag(ROOMS_CACHE_TAG);
+  revalidateTag(ROOMS_CACHE_TAG, "max");
 
   return NextResponse.json(serializeRoom(result.rows[0] as RoomDbRow));
 }
@@ -130,7 +130,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Room not found." }, { status: 404 });
   }
 
-  revalidateTag(ROOMS_CACHE_TAG);
+  revalidateTag(ROOMS_CACHE_TAG, "max");
 
   return NextResponse.json({ deleted: true });
 }
