@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useMemo, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
 import type { AdminPaymentRecord, AdminPaymentStat } from "@/lib/admin-data";
 import { AdminPagination } from "@/components/admin/admin-pagination";
@@ -9,6 +10,7 @@ type PaymentStatus = "Completed" | "Pending" | "Failed";
 
 type PaymentRecord = {
   id: string;
+  bookingDbId: string;
   bookingId: string;
   guestName: string;
   guestEmail: string;
@@ -66,6 +68,7 @@ const mockStats: PaymentStat[] = [
 const mockPayments: PaymentRecord[] = [
   {
     id: "PAY-2024-1234",
+    bookingDbId: "BK-1234",
     bookingId: "BK-1234",
     guestName: "Kwame Mensah",
     guestEmail: "kwame.mensah@email.com",
@@ -82,6 +85,7 @@ const mockPayments: PaymentRecord[] = [
   },
   {
     id: "PAY-2024-1235",
+    bookingDbId: "BK-1235",
     bookingId: "BK-1235",
     guestName: "Ama Owusu",
     guestEmail: "ama.owusu@email.com",
@@ -98,6 +102,7 @@ const mockPayments: PaymentRecord[] = [
   },
   {
     id: "PAY-2024-1236",
+    bookingDbId: "BK-1236",
     bookingId: "BK-1236",
     guestName: "Kofi Asante",
     guestEmail: "kofi.asante@email.com",
@@ -114,6 +119,7 @@ const mockPayments: PaymentRecord[] = [
   },
   {
     id: "PAY-2024-1237",
+    bookingDbId: "BK-1237",
     bookingId: "BK-1237",
     guestName: "Efua Boateng",
     guestEmail: "efua.boateng@email.com",
@@ -130,6 +136,7 @@ const mockPayments: PaymentRecord[] = [
   },
   {
     id: "PAY-2024-1238",
+    bookingDbId: "BK-1238",
     bookingId: "BK-1238",
     guestName: "Yaw Osei",
     guestEmail: "yaw.osei@email.com",
@@ -146,6 +153,7 @@ const mockPayments: PaymentRecord[] = [
   },
   {
     id: "PAY-2024-1239",
+    bookingDbId: "BK-1239",
     bookingId: "BK-1239",
     guestName: "Akua Mensah",
     guestEmail: "akua.mensah@email.com",
@@ -162,6 +170,7 @@ const mockPayments: PaymentRecord[] = [
   },
   {
     id: "PAY-2024-1240",
+    bookingDbId: "BK-1240",
     bookingId: "BK-1240",
     guestName: "Kwabena Adjei",
     guestEmail: "kwabena.adjei@email.com",
@@ -358,10 +367,21 @@ function toPaymentsCsv(payments: PaymentRecord[]) {
 function PaymentModal({
   payment,
   onClose,
+  onConfirm,
+  onReject,
+  onOpenReceipt,
+  busy,
 }: {
   payment: PaymentRecord;
   onClose: () => void;
+  onConfirm: () => Promise<void>;
+  onReject: () => Promise<void>;
+  onOpenReceipt: () => void;
+  busy: boolean;
 }) {
+  const isPending = payment.status === "Pending";
+  const isCompleted = payment.status === "Completed";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto bg-white">
@@ -390,6 +410,19 @@ function PaymentModal({
               <Detail label="Name" value={payment.guestName} />
               <Detail label="Email" value={payment.guestEmail} />
             </div>
+            {isPending ? (
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-label-caps text-[10px] font-bold uppercase tracking-widest text-amber-700">
+                  Pending payment
+                </p>
+                <p className="mt-2 font-body-md text-[14px] leading-relaxed text-amber-900">
+                  This means Paystack has not finalized verification yet. If the
+                  gateway confirms the charge, the booking should move to paid
+                  automatically. If it is an abandoned or invalid attempt, you can
+                  reject it here.
+                </p>
+              </div>
+            ) : null}
           </Section>
 
           <Section title="Booking Information">
@@ -424,27 +457,33 @@ function PaymentModal({
           </Section>
 
           <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
-            {payment.status === "Pending" ? (
+            {isPending ? (
               <button
-                className="flex-1 bg-green-600 px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-green-700"
+                className="flex-1 bg-green-600 px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={busy}
+                onClick={onConfirm}
                 type="button"
               >
-                Confirm Payment
+                {busy ? "Updating..." : "Confirm Payment"}
               </button>
             ) : null}
-            {payment.status === "Failed" ? (
+            {isPending ? (
               <button
-                className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+                className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={busy}
+                onClick={onReject}
                 type="button"
               >
-                Retry Payment
+                {busy ? "Updating..." : "Reject Payment"}
               </button>
             ) : null}
             <button
-              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone"
+              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={busy}
+              onClick={onOpenReceipt}
               type="button"
             >
-              Download Receipt
+              {isCompleted ? "Download Receipt" : "Download Receipt PDF"}
             </button>
           </div>
         </div>
@@ -466,6 +505,7 @@ export function AdminPaymentsView({
   revenueTrend: revenueTrendProp = mockRevenueTrend,
   statusData: statusDataProp = mockStatusData,
 }: AdminPaymentsViewProps = {}) {
+  const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState<
     "all" | "completed" | "pending" | "failed"
   >("all");
@@ -474,6 +514,7 @@ export function AdminPaymentsView({
   const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(
     null,
   );
+  const [actionBusy, setActionBusy] = useState(false);
   const pageSize = 5;
   const payments = paymentsProp;
   const stats = statsProp;
@@ -492,22 +533,62 @@ export function AdminPaymentsView({
     window.URL.revokeObjectURL(url);
   };
 
-  const filteredPayments = payments.filter((payment) => {
-    const matchesFilter =
-      selectedFilter === "all" || payment.status.toLowerCase() === selectedFilter;
-    const matchesSearch =
-      payment.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.transactionRef.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredPayments = useMemo(
+    () =>
+      payments.filter((payment) => {
+        const matchesFilter =
+          selectedFilter === "all" || payment.status.toLowerCase() === selectedFilter;
+        const matchesSearch =
+          payment.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          payment.transactionRef.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          payment.bookingId.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesFilter && matchesSearch;
-  });
+        return matchesFilter && matchesSearch;
+      }),
+    [payments, searchTerm, selectedFilter],
+  );
 
   const pageCount = Math.max(Math.ceil(filteredPayments.length / pageSize), 1);
   const displayPage = Math.min(page, pageCount);
 
   const start = (displayPage - 1) * pageSize;
   const paginatedPayments = filteredPayments.slice(start, start + pageSize);
+  const activePayment = selectedPayment;
+
+  const openReceipt = (payment: PaymentRecord) => {
+    window.open(`/receipt/${payment.bookingId}?download=1`, "_blank", "noopener,noreferrer");
+  };
+
+  const updatePaymentStatus = async (
+    payment: PaymentRecord,
+    booking_status: "confirmed" | "cancelled",
+    payment_status: "paid" | "failed",
+  ) => {
+    setActionBusy(true);
+
+    try {
+      const response = await fetch(`/api/bookings/${payment.bookingDbId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          booking_status,
+          payment_status,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to update payment.");
+      }
+
+      setSelectedPayment(null);
+      router.refresh();
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   return (
     <div>
@@ -562,8 +643,8 @@ export function AdminPaymentsView({
         <Section title="Payment Status Breakdown">
           <div className="space-y-4">
             {statusData.map((method) => {
-              const maxCount = Math.max(...statusData.map((item) => item.count), 1);
-              const width = Math.max((method.count / maxCount) * 100, 12);
+              const maxCount = Math.max(...statusData.map((item) => item.count), 0);
+              const width = maxCount === 0 ? 0 : (method.count / maxCount) * 100;
 
               return (
                 <div key={method.label}>
@@ -572,10 +653,9 @@ export function AdminPaymentsView({
                     <span className="font-bold">{method.count}</span>
                   </div>
                   <div className="h-3 overflow-hidden bg-surface-bone">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: `${width}%` }}
-                    />
+                    {method.count > 0 ? (
+                      <div className="h-full bg-primary" style={{ width: `${width}%` }} />
+                    ) : null}
                   </div>
                 </div>
               );
@@ -733,10 +813,18 @@ export function AdminPaymentsView({
         />
       </section>
 
-      {selectedPayment ? (
+      {activePayment ? (
         <PaymentModal
+          busy={actionBusy}
           onClose={() => setSelectedPayment(null)}
-          payment={selectedPayment}
+          onConfirm={() =>
+            updatePaymentStatus(activePayment!, "confirmed", "paid")
+          }
+          onOpenReceipt={() => openReceipt(activePayment!)}
+          onReject={() =>
+            updatePaymentStatus(activePayment!, "cancelled", "failed")
+          }
+          payment={activePayment!}
         />
       ) : null}
     </div>

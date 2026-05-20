@@ -190,7 +190,7 @@ function BarChart({
   data: SeriesPoint[];
   valueLabel: string;
 }) {
-  const max = Math.max(...data.map((item) => item.value), 1);
+  const max = Math.max(...data.map((item) => item.value), 0);
 
   return (
     <Panel title={title}>
@@ -198,28 +198,36 @@ function BarChart({
         <span>{valueLabel}</span>
         <span>{Math.max(...data.map((item) => item.value)).toLocaleString()}</span>
       </div>
-      <div className="flex h-[220px] items-end gap-2 overflow-x-hidden border-b border-l border-surface-container pb-3 pl-2 sm:h-[280px] sm:gap-4 sm:pb-4 sm:pl-4">
-        {data.map((item) => {
-          const height = Math.max((item.value / max) * 100, 8);
+      {max === 0 ? (
+        <div className="flex h-[220px] items-center justify-center rounded-sm border border-dashed border-surface-container bg-surface-bone/30 text-center font-body-md text-[14px] text-outline-clay sm:h-[280px]">
+          No data yet.
+        </div>
+      ) : (
+        <div className="flex h-[220px] items-end gap-2 overflow-x-hidden border-b border-l border-surface-container pb-3 pl-2 sm:h-[280px] sm:gap-4 sm:pb-4 sm:pl-4">
+          {data.map((item) => {
+            const height = Math.max((item.value / max) * 100, item.value === 0 ? 0 : 8);
 
-          return (
-            <div
-              className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2 sm:gap-3"
-              key={item.label}
-            >
-              <div className="flex h-[170px] w-full items-end justify-center sm:h-[220px]">
-                <div
-                  className="w-full max-w-[28px] rounded-t-sm bg-primary shadow-[0_12px_24px_rgba(74,30,0,0.15)] sm:max-w-[42px]"
-                  style={{ height: `${height}%` }}
-                />
+            return (
+              <div
+                className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2 sm:gap-3"
+                key={item.label}
+              >
+                <div className="flex h-[170px] w-full items-end justify-center sm:h-[220px]">
+                  {item.value > 0 ? (
+                    <div
+                      className="w-full max-w-[28px] rounded-t-sm bg-primary shadow-[0_12px_24px_rgba(74,30,0,0.15)] sm:max-w-[42px]"
+                      style={{ height: `${height}%` }}
+                    />
+                  ) : null}
+                </div>
+                <span className="text-center font-body-md text-[10px] text-outline-clay sm:text-[12px]">
+                  {item.label}
+                </span>
               </div>
-              <span className="text-center font-body-md text-[10px] text-outline-clay sm:text-[12px]">
-                {item.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </Panel>
   );
 }
@@ -232,38 +240,48 @@ function DonutChart({
   slices: RoomSlice[];
 }) {
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
-  const { gradient } = slices.reduce(
-    (accumulator, slice) => {
-      const start = accumulator.cursor;
-      const end = accumulator.cursor + (slice.value / total) * 100;
-      accumulator.cursor = end;
-      accumulator.gradient.push(`${slice.color} ${start}% ${end}%`);
-      return accumulator;
-    },
-    { cursor: 0, gradient: [] as string[] },
-  );
+  const { gradient } = total === 0
+    ? { gradient: [] as string[] }
+    : slices.reduce(
+        (accumulator, slice) => {
+          const start = accumulator.cursor;
+          const end = accumulator.cursor + (slice.value / total) * 100;
+          accumulator.cursor = end;
+          accumulator.gradient.push(`${slice.color} ${start}% ${end}%`);
+          return accumulator;
+        },
+        { cursor: 0, gradient: [] as string[] },
+      );
 
   return (
     <Panel title={title}>
       <div className="flex flex-col items-center gap-5 sm:gap-6">
-        <div
-          className="relative h-44 w-44 rounded-full sm:h-56 sm:w-56"
-          style={{
-            background: `conic-gradient(${gradient})`,
-          }}
-        >
-          <div className="absolute inset-6 rounded-full bg-white shadow-inner sm:inset-8" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="font-eczar text-2xl font-bold text-charred-wood sm:text-3xl">
-                {total}
-              </div>
-              <div className="font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
-                Rooms
+        {total === 0 ? (
+          <div className="flex h-44 w-44 items-center justify-center rounded-full border border-dashed border-surface-container bg-surface-bone/30 text-center sm:h-56 sm:w-56">
+            <div className="font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+              No room data
+            </div>
+          </div>
+        ) : (
+          <div
+            className="relative h-44 w-44 rounded-full sm:h-56 sm:w-56"
+            style={{
+              background: `conic-gradient(${gradient})`,
+            }}
+          >
+            <div className="absolute inset-6 rounded-full bg-white shadow-inner sm:inset-8" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="font-eczar text-2xl font-bold text-charred-wood sm:text-3xl">
+                  {total}
+                </div>
+                <div className="font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+                  Rooms
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
         <div className="grid w-full gap-2 sm:grid-cols-2 sm:gap-3">
           {slices.map((slice) => (
             <div className="flex items-center gap-2 sm:gap-3" key={slice.name}>

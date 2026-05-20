@@ -81,6 +81,7 @@ export type AdminCustomerRecord = {
 
 export type AdminPaymentRecord = {
   id: string;
+  bookingDbId: string;
   bookingId: string;
   guestName: string;
   guestEmail: string;
@@ -407,6 +408,7 @@ export async function getAdminPaymentsData() {
   const bookings = await fetchBookingsWithRooms();
 
   return bookings.map((booking) => ({
+    bookingDbId: booking.id,
     id: booking.payment_status === "paid" ? `PAY-${booking.booking_code}` : booking.booking_code,
     bookingId: booking.booking_code,
     guestName: booking.guest_name,
@@ -422,6 +424,75 @@ export async function getAdminPaymentsData() {
     checkOut: formatIsoDate(booking.check_out_date),
     nights: bookingLength(booking.check_in_date, booking.check_out_date),
   })) satisfies AdminPaymentRecord[];
+}
+
+export type AdminPaymentReceipt = {
+  bookingDbId: string;
+  bookingId: string;
+  receiptId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  room: string;
+  roomType: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  guests: number;
+  amount: number;
+  currency: string;
+  paymentStatus: "Paid" | "Pending" | "Refunded";
+  bookingStatus: "Confirmed" | "Pending" | "Cancelled";
+  transactionRef: string;
+  bookingDate: string;
+  updatedAt: string;
+  roomImage: string;
+};
+
+export async function getAdminPaymentReceiptData(bookingCode: string) {
+  const result = await query<BookingWithRoomRow>(
+    `select
+       b.*,
+       r.name as room_name,
+       r.room_type as room_type,
+       r.price_per_night as room_price_per_night,
+       coalesce((r.images::jsonb ->> 0), '') as room_image
+     from bookings b
+     join rooms r on r.id = b.room_id
+     where b.booking_code = $1
+     limit 1`,
+    [bookingCode],
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  const booking = result.rows[0] as BookingWithRoomRow & { room_image: string };
+  const serialised = serializeBooking(booking);
+
+  return {
+    bookingDbId: serialised.id,
+    bookingId: serialised.booking_code,
+    receiptId: serialised.payment_status === "paid" ? `PAY-${serialised.booking_code}` : `RCPT-${serialised.booking_code}`,
+    guestName: serialised.guest_name,
+    guestEmail: serialised.guest_email,
+    guestPhone: serialised.guest_phone,
+    room: booking.room_name,
+    roomType: booking.room_type,
+    checkIn: formatIsoDate(serialised.check_in_date),
+    checkOut: formatIsoDate(serialised.check_out_date),
+    nights: bookingLength(serialised.check_in_date, serialised.check_out_date),
+    guests: serialised.guest_count,
+    amount: serialised.total_amount,
+    currency: serialised.currency,
+    paymentStatus: paymentStatusLabel(serialised.payment_status),
+    bookingStatus: bookingStatusLabel(serialised.booking_status),
+    transactionRef: serialised.paystack_reference ?? serialised.booking_code,
+    bookingDate: formatDateTime(serialised.created_at),
+    updatedAt: formatDateTime(serialised.updated_at),
+    roomImage: booking.room_image ?? "",
+  } satisfies AdminPaymentReceipt;
 }
 
 export async function getAdminDashboardData() {
