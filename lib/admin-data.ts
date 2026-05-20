@@ -36,6 +36,7 @@ export type AdminRoomRecord = {
   status: "Available" | "Maintenance";
   amenities: string[];
   description: string;
+  image: string;
   totalBookings: number;
   currentOccupancy: "Vacant" | "Occupied" | "Under Maintenance";
 };
@@ -76,7 +77,6 @@ export type AdminCustomerRecord = {
   lastBooking: string;
   status: "Active" | "VIP" | "Inactive";
   joinDate: string;
-  address: string;
 };
 
 export type AdminPaymentRecord = {
@@ -300,6 +300,7 @@ export async function getAdminRoomsData(): Promise<AdminRoomRecord[]> {
     status: room.is_active && room.availability_status === "available" ? "Available" : "Maintenance",
     amenities: room.amenities as string[],
     description: room.description,
+    image: Array.isArray(room.images) && typeof room.images[0] === "string" ? room.images[0] : "",
     totalBookings: bookingCounts.get(room.id) ?? 0,
     currentOccupancy:
       room.is_active && room.availability_status === "available"
@@ -354,7 +355,6 @@ export async function getAdminCustomersData(): Promise<AdminCustomerRecord[]> {
         lastBooking: formatIsoDate(booking.created_at),
         status: "Active",
         joinDate: formatIsoDate(booking.created_at),
-        address: "Not stored in booking records",
         _lastSeen: bookingDate,
         _joinedAt: bookingDate,
       });

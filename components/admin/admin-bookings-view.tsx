@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Icon from "@/components/icon";
 import { AdminPagination } from "@/components/admin/admin-pagination";
 
@@ -314,18 +314,27 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 type AdminBookingsViewProps = {
   bookings?: BookingRecord[];
+  initialSearchTerm?: string;
 };
 
-function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProps = {}) {
+function AdminBookingsContent({
+  bookings = mockBookings,
+  initialSearchTerm = "",
+}: AdminBookingsViewProps = {}) {
   const [selectedFilter, setSelectedFilter] = useState<
     "all" | "confirmed" | "pending" | "cancelled"
   >("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(
     null,
   );
   const pageSize = 5;
+
+  useEffect(() => {
+    setSearchTerm(initialSearchTerm);
+    setPage(1);
+  }, [initialSearchTerm]);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -334,8 +343,16 @@ function AdminBookingsContent({ bookings = mockBookings }: AdminBookingsViewProp
         booking.status.toLowerCase() === selectedFilter;
       const matchesSearch =
         booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.guestEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.guestPhone.toLowerCase().includes(searchTerm.toLowerCase()) ||
         booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.room.toLowerCase().includes(searchTerm.toLowerCase());
+        (booking.bookingId?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        booking.room.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.checkIn.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.checkOut.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.bookingDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.paymentStatus.toLowerCase().includes(searchTerm.toLowerCase());
 
       return matchesFilter && matchesSearch;
     });

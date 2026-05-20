@@ -34,6 +34,7 @@ export default async function RoomsPage({
   const selectedViewType = Array.isArray(query.viewType)
     ? query.viewType[0]
     : query.viewType;
+  const search = Array.isArray(query.search) ? query.search[0] : query.search;
   const checkIn = Array.isArray(query.checkIn) ? query.checkIn[0] : query.checkIn;
   const checkOut = Array.isArray(query.checkOut) ? query.checkOut[0] : query.checkOut;
 
@@ -45,6 +46,7 @@ export default async function RoomsPage({
           checkIn,
           checkOut,
           maxGuests: guestsValue,
+          searchTerm: search,
           selectedBedType,
           selectedRoomType,
           selectedViewType,

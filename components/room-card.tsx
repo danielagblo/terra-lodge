@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import Icon from "@/components/icon";
+import RoomImage from "@/components/room-image";
 import type { Room } from "@/lib/rooms";
 
 export default function RoomCard({
@@ -15,7 +15,7 @@ export default function RoomCard({
       className={`bg-white border border-surface-container shadow-sm hover:shadow-md transition-shadow group flex flex-col ${className}`.trim()}
     >
       <div className="aspect-[4/3] overflow-hidden relative">
-        <Image
+        <RoomImage
           alt={room.alt}
           className="object-cover"
           fill

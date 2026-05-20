@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { query } from "@/lib/db";
 import { serializeRoom, type RoomDbRow } from "@/lib/db-serializers";
 import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
+const ROOMS_CACHE_TAG = "rooms";
 const MAX_ROOM_IMAGES = Math.max(
   1,
   Number(process.env.NEXT_PUBLIC_MAX_ROOM_IMAGES ?? "6") || 6,
@@ -27,6 +29,8 @@ export async function GET(
   if (result.rowCount === 0) {
     return NextResponse.json({ error: "Room not found." }, { status: 404 });
   }
+
+  revalidateTag(ROOMS_CACHE_TAG);
 
   return NextResponse.json(serializeRoom(result.rows[0] as RoomDbRow));
 }
@@ -125,6 +129,8 @@ export async function DELETE(
   if (result.rowCount === 0) {
     return NextResponse.json({ error: "Room not found." }, { status: 404 });
   }
+
+  revalidateTag(ROOMS_CACHE_TAG);
 
   return NextResponse.json({ deleted: true });
 }

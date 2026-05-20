@@ -1,6 +1,9 @@
 import { query } from "@/lib/db";
 import { serializeRoom, type RoomDbRow } from "@/lib/db-serializers";
+import { unstable_cache } from "next/cache";
 import type { Room, RoomFeature } from "@/lib/rooms";
+
+const ROOMS_CACHE_TAG = "rooms";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -58,25 +61,47 @@ function mapRoom(row: RoomDbRow): Room {
     cancellationPolicy: room.cancellation_policy ?? "",
     features,
     description: room.description,
+    isActive: room.is_active,
+    availabilityStatus: room.availability_status,
   };
 }
 
-export async function getRooms() {
-  const result = await query(
-    `select * from rooms where is_active = true order by featured desc, created_at desc`,
-  );
+const fetchRooms = unstable_cache(
+  async () => {
+    const result = await query(
+      `select * from rooms where is_active = true order by featured desc, created_at desc`,
+    );
 
-  return result.rows.map((row) => mapRoom(row as RoomDbRow));
+    return result.rows.map((row) => mapRoom(row as RoomDbRow));
+  },
+  ["rooms-list"],
+  {
+    tags: [ROOMS_CACHE_TAG],
+  },
+);
+
+const fetchRoomByIdentifier = unstable_cache(
+  async (identifier: string) => {
+    const result = await query(
+      `select * from rooms where id::text = $1 or slug = $1 limit 1`,
+      [identifier],
+    );
+
+    const row = result.rows[0];
+    return row ? mapRoom(row as RoomDbRow) : null;
+  },
+  ["room-by-identifier"],
+  {
+    tags: [ROOMS_CACHE_TAG],
+  },
+);
+
+export async function getRooms() {
+  return fetchRooms();
 }
 
 export async function getRoomByIdentifier(identifier: string) {
-  const result = await query(
-    `select * from rooms where id::text = $1 or slug = $1 limit 1`,
-    [identifier],
-  );
-
-  const row = result.rows[0];
-  return row ? mapRoom(row as RoomDbRow) : null;
+  return fetchRoomByIdentifier(identifier);
 }
 
 export function mapRooms(rows: RoomDbRow[]) {

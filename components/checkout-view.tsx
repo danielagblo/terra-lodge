@@ -1,11 +1,10 @@
 "use client";
 
 import { type ChangeEvent, type ReactNode, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import PaystackPop from "@paystack/inline-js";
 import Icon from "@/components/icon";
+import RoomImage from "@/components/room-image";
 import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
@@ -162,6 +161,12 @@ function SuccessModal({
   roomId: string | number;
   whatsappHref: string;
 }) {
+  const bookingParams = new URLSearchParams({
+    booking: "success",
+    bookingRoomId: String(roomId),
+    bookingRef: reference,
+  });
+
   return (
     <ModalShell
       icon={<Icon name="check" className="text-3xl" />}
@@ -170,7 +175,7 @@ function SuccessModal({
       primaryAction={
         <Link
           className="flex-1 bg-primary px-6 py-4 cursor-pointer hover:bg-laterite-red transition-colors text-center"
-          href={`/room/${roomId}`}
+          href={`/room/${roomId}?${bookingParams.toString()}`}
         >
           <span className="font-label-caps text-sm font-bold text-white uppercase">
             View My Booking
@@ -270,9 +275,11 @@ function CancelledModal({ onClose }: { onClose: () => void }) {
 export default function CheckoutView({
   room,
   initialBooking,
+  bookingConflict = false,
 }: {
   room: Room;
   initialBooking: BookingDetails;
+  bookingConflict?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -304,6 +311,14 @@ export default function CheckoutView({
   );
   const subtotal = room.priceValue * nights * booking.rooms;
   const bookingReference = completedReference || "";
+  const isRoomUnavailable =
+    room.isActive === false || (room.availabilityStatus ?? "available") !== "available";
+  const isCheckoutBlocked = isRoomUnavailable || bookingConflict;
+  const blockedMessage = isRoomUnavailable
+    ? "This room is currently unavailable."
+    : bookingConflict
+      ? "This room is already booked for the dates you selected."
+      : "";
   const whatsappHref = useMemo(() => {
     const message = [
       "Hello Terra Lodge, I just completed my booking.",
@@ -332,6 +347,7 @@ export default function CheckoutView({
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = event.target;
+
     setGuestInfo((current) => ({
       ...current,
       [name]: value,
@@ -377,9 +393,14 @@ export default function CheckoutView({
   };
 
   const handlePay = async () => {
+    if (isCheckoutBlocked) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      const { default: PaystackPop } = await import("@paystack/inline-js");
       const initializeResponse = await fetch("/api/paystack/initialize", {
         body: JSON.stringify({
           roomId: room.id,
@@ -435,6 +456,14 @@ export default function CheckoutView({
             }
 
             const verifyData = (await verifyResponse.json()) as VerifyResponse;
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("terra:last-booked-room-id", String(room.id));
+              window.localStorage.setItem(
+                "terra:last-booked-reference",
+                verifyData.booking.paystack_reference ?? reference,
+              );
+              window.dispatchEvent(new Event("terra-booking-updated"));
+            }
             setCompletedReference(verifyData.booking.paystack_reference ?? reference);
             setModalInUrl("success");
           } catch {
@@ -455,10 +484,11 @@ export default function CheckoutView({
     <main className="flex-1 bg-surface-bone text-charred-wood">
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <Image
+          <RoomImage
             alt={siteContent.checkout.heroAlt}
             className="object-cover"
             fill
+            loading="eager"
             priority
             sizes="100vw"
             src={room.image}
@@ -486,7 +516,7 @@ export default function CheckoutView({
           <div className="flex flex-col gap-8">
             <article className="bg-white border border-surface-container overflow-hidden">
               <div className="relative h-[220px] overflow-hidden">
-                <Image
+                <RoomImage
                   alt={room.name}
                   className="object-cover"
                   fill
@@ -653,22 +683,40 @@ export default function CheckoutView({
                     />
                   </div>
 
-                  <button
-                    className="w-full mt-2 bg-primary text-white px-6 py-4 font-label-caps text-sm font-bold uppercase hover:bg-laterite-red transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isLoading}
-                    onClick={handlePay}
-                    type="button"
-                  >
-                    {isLoading ? "Processing..." : "Pay with Paystack"}
-                  </button>
-                </form>
+                <button
+                  className="w-full mt-2 bg-primary text-white px-6 py-4 font-label-caps text-sm font-bold uppercase hover:bg-laterite-red transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isLoading || isCheckoutBlocked}
+                  onClick={handlePay}
+                  type="button"
+                >
+                  {isCheckoutBlocked
+                    ? "Unavailable"
+                    : isLoading
+                      ? "Processing..."
+                      : "Pay with Paystack"}
+                </button>
+              </form>
 
-                <div className="mt-6 text-center">
-                  <p className="font-body-md text-xs text-outline-clay leading-relaxed">
-                    Secure payment. You won&apos;t be charged yet.
-                  </p>
-                </div>
+              <div className="mt-6 text-center">
+                <p className="font-body-md text-xs text-outline-clay leading-relaxed">
+                  Secure payment. You won&apos;t be charged yet.
+                </p>
               </div>
+
+              {isCheckoutBlocked ? (
+                <div className="mt-4 rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <div className="flex items-start gap-3">
+                    <Icon name="warning" className="mt-0.5 text-amber-700" />
+                    <div>
+                      <p className="font-label-caps text-[11px] font-bold uppercase tracking-widest">
+                        Booking Blocked
+                      </p>
+                      <p className="mt-1 font-body-md leading-relaxed">{blockedMessage}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
             </article>
 
             <article className="bg-white border border-surface-container p-6 flex items-center justify-center gap-3">

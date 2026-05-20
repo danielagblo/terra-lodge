@@ -6,6 +6,7 @@ export const ADMIN_LOGIN_PASSWORD = process.env.ADMIN_LOGIN_PASSWORD ?? "";
 
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET ?? "";
 const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 12;
+const sessionVerificationCache = new Map<string, { valid: boolean; expiresAt: number }>();
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -62,6 +63,11 @@ export async function createAdminSessionToken(email: string) {
 export async function verifyAdminSessionToken(token: string | undefined | null) {
   if (!token) return false;
 
+  const cached = sessionVerificationCache.get(token);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.valid;
+  }
+
   const [payloadPart, signature] = token.split(".");
   if (!payloadPart || !signature) return false;
 
@@ -70,10 +76,12 @@ export async function verifyAdminSessionToken(token: string | undefined | null) 
   try {
     payloadText = base64UrlDecode(payloadPart);
   } catch {
+    sessionVerificationCache.set(token, { valid: false, expiresAt: Date.now() + 60_000 });
     return false;
   }
 
   if ((await sign(payloadText)) !== signature) {
+    sessionVerificationCache.set(token, { valid: false, expiresAt: Date.now() + 60_000 });
     return false;
   }
 
@@ -84,15 +92,19 @@ export async function verifyAdminSessionToken(token: string | undefined | null) 
     };
 
     if (payload.email !== ADMIN_LOGIN_EMAIL) {
+      sessionVerificationCache.set(token, { valid: false, expiresAt: Date.now() + 60_000 });
       return false;
     }
 
     if (!payload.expiresAt || payload.expiresAt < Date.now()) {
+      sessionVerificationCache.set(token, { valid: false, expiresAt: Date.now() + 60_000 });
       return false;
     }
 
+    sessionVerificationCache.set(token, { valid: true, expiresAt: payload.expiresAt });
     return true;
   } catch {
+    sessionVerificationCache.set(token, { valid: false, expiresAt: Date.now() + 60_000 });
     return false;
   }
 }

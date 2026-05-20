@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
 import type { AdminCustomerRecord } from "@/lib/admin-data";
 import { AdminPagination } from "@/components/admin/admin-pagination";
+import { siteContent } from "@/lib/site-content";
 
 type CustomerStatus = "Active" | "VIP" | "Inactive";
 
@@ -17,7 +19,6 @@ type CustomerRecord = {
   lastBooking: string;
   status: CustomerStatus;
   joinDate: string;
-  address: string;
 };
 
 const mockCustomers: CustomerRecord[] = [
@@ -31,7 +32,6 @@ const mockCustomers: CustomerRecord[] = [
     lastBooking: "2026-05-17",
     status: "Active",
     joinDate: "2025-08-15",
-    address: "123 Main Street, Accra, Ghana",
   },
   {
     id: 2,
@@ -43,7 +43,6 @@ const mockCustomers: CustomerRecord[] = [
     lastBooking: "2026-04-22",
     status: "Active",
     joinDate: "2025-10-20",
-    address: "456 Oak Avenue, Kumasi, Ghana",
   },
   {
     id: 3,
@@ -55,7 +54,6 @@ const mockCustomers: CustomerRecord[] = [
     lastBooking: "2026-05-10",
     status: "VIP",
     joinDate: "2025-03-12",
-    address: "789 Palm Street, Takoradi, Ghana",
   },
   {
     id: 4,
@@ -67,7 +65,6 @@ const mockCustomers: CustomerRecord[] = [
     lastBooking: "2026-05-05",
     status: "Active",
     joinDate: "2026-01-08",
-    address: "321 River Road, Tamale, Ghana",
   },
   {
     id: 5,
@@ -79,7 +76,6 @@ const mockCustomers: CustomerRecord[] = [
     lastBooking: "2025-12-20",
     status: "Inactive",
     joinDate: "2025-11-15",
-    address: "654 Beach Lane, Cape Coast, Ghana",
   },
   {
     id: 6,
@@ -91,7 +87,6 @@ const mockCustomers: CustomerRecord[] = [
     lastBooking: "2026-05-12",
     status: "Active",
     joinDate: "2025-06-22",
-    address: "987 Hill View, Sunyani, Ghana",
   },
 ];
 
@@ -173,9 +168,13 @@ function Detail({
 function Modal({
   customer,
   onClose,
+  onViewBookings,
+  whatsappHref,
 }: {
   customer: CustomerRecord;
   onClose: () => void;
+  onViewBookings: () => void;
+  whatsappHref: string;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -203,20 +202,25 @@ function Modal({
 
         <div className="space-y-6 p-6">
           <section className="border-b border-surface-container pb-6">
-            <h3 className="mb-4 font-eczar text-[20px] font-bold text-charred-wood">
-              Contact Information
-            </h3>
+            <div className="mb-4 flex items-center gap-2">
+              <Icon name="person" className="text-[20px] text-primary" />
+              <h3 className="font-eczar text-[20px] font-bold text-charred-wood">
+                Contact Information
+              </h3>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Detail label="Email" value={customer.email} />
               <Detail label="Phone" value={customer.phone} />
-              <Detail label="Address" span value={customer.address} />
             </div>
           </section>
 
           <section className="border-b border-surface-container pb-6">
-            <h3 className="mb-4 font-eczar text-[20px] font-bold text-charred-wood">
-              Booking Statistics
-            </h3>
+            <div className="mb-4 flex items-center gap-2">
+              <Icon name="luggage" className="text-[20px] text-primary" />
+              <h3 className="font-eczar text-[20px] font-bold text-charred-wood">
+                Booking Statistics
+              </h3>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Detail label="Total Bookings" value={String(customer.totalBookings)} />
               <Detail label="Total Spent" value={`GH₵ ${customer.totalSpent.toLocaleString()}`} />
@@ -239,16 +243,19 @@ function Modal({
           <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
             <button
               className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+              onClick={onViewBookings}
               type="button"
             >
               View Bookings
             </button>
-            <button
-              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone"
-              type="button"
+            <a
+              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary text-center transition-colors hover:bg-surface-bone"
+              href={whatsappHref}
+              rel="noreferrer"
+              target="_blank"
             >
-              Send Message
-            </button>
+              Send Message on WhatsApp
+            </a>
           </div>
         </div>
       </div>
@@ -261,6 +268,7 @@ type AdminCustomersViewProps = {
 };
 
 function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersViewProps = {}) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(
@@ -287,6 +295,12 @@ function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersView
     const start = (displayPage - 1) * pageSize;
     return filteredCustomers.slice(start, start + pageSize);
   }, [displayPage, filteredCustomers]);
+
+  const whatsappHref = selectedCustomer
+    ? `https://wa.me/${siteContent.contact.whatsappDial}?text=${encodeURIComponent(
+        `Hello ${selectedCustomer.name}, this is Terra Lodge regarding your bookings.`,
+      )}`
+    : "";
 
   return (
     <div>
@@ -424,7 +438,18 @@ function AdminCustomersContent({ customers = mockCustomers }: AdminCustomersView
       {selectedCustomer ? (
         <Modal
           customer={selectedCustomer}
+          onViewBookings={() => {
+            const search = [
+              selectedCustomer.name,
+              selectedCustomer.email,
+              selectedCustomer.phone,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            router.push(`/admin/bookings?search=${encodeURIComponent(search)}`);
+          }}
           onClose={() => setSelectedCustomer(null)}
+          whatsappHref={whatsappHref}
         />
       ) : null}
     </div>

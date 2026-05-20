@@ -20,6 +20,8 @@ export type Room = {
   cancellationPolicy: string;
   features: RoomFeature[];
   description: string;
+  isActive?: boolean;
+  availabilityStatus?: "available" | "closed" | "maintenance" | string;
 };
 
 const stockImages = {

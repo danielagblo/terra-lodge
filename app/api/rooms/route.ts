@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { query } from "@/lib/db";
 import { serializeRoom } from "@/lib/db-serializers";
 import { requireAdminSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
+const ROOMS_CACHE_TAG = "rooms";
 const MAX_ROOM_IMAGES = Math.max(
   1,
   Number(process.env.NEXT_PUBLIC_MAX_ROOM_IMAGES ?? "6") || 6,
@@ -116,6 +118,8 @@ export async function POST(request: Request) {
       values.featured,
     ],
   );
+
+  revalidateTag(ROOMS_CACHE_TAG);
 
   return NextResponse.json(
     serializeRoom(result.rows[0] as Parameters<typeof serializeRoom>[0]),

@@ -22,6 +22,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
 import type { AdminRoomRecord } from "@/lib/admin-data";
+import { roomInventory } from "@/lib/rooms";
 import { AdminPagination } from "@/components/admin/admin-pagination";
 
 type RoomStatus = "Available" | "Maintenance";
@@ -36,6 +37,7 @@ type RoomRecord = {
   status: RoomStatus;
   amenities: string[];
   description: string;
+  image: string;
   totalBookings: number;
   currentOccupancy: CurrentOccupancy;
 };
@@ -139,6 +141,7 @@ const mockRooms: RoomRecord[] = [
     status: "Available",
     amenities: ["Wi-Fi", "Air Conditioning", "Mini Bar", "Balcony"],
     description: "Elegant suite with panoramic views of the surrounding landscape",
+    image: roomInventory[0]?.image ?? "",
     totalBookings: 45,
     currentOccupancy: "Vacant",
   },
@@ -151,6 +154,7 @@ const mockRooms: RoomRecord[] = [
     status: "Available",
     amenities: ["Wi-Fi", "Air Conditioning", "Work Desk"],
     description: "Cozy room with mountain views and modern amenities",
+    image: roomInventory[1]?.image ?? "",
     totalBookings: 38,
     currentOccupancy: "Occupied",
   },
@@ -163,6 +167,7 @@ const mockRooms: RoomRecord[] = [
     status: "Available",
     amenities: ["Wi-Fi", "Air Conditioning", "Kitchenette", "Living Area"],
     description: "Spacious family accommodation with separate living area",
+    image: roomInventory[2]?.image ?? "",
     totalBookings: 32,
     currentOccupancy: "Vacant",
   },
@@ -175,6 +180,7 @@ const mockRooms: RoomRecord[] = [
     status: "Maintenance",
     amenities: ["Wi-Fi", "Air Conditioning", "Jacuzzi", "Private Garden"],
     description: "Luxurious suite with premium amenities and private access",
+    image: roomInventory[3]?.image ?? "",
     totalBookings: 28,
     currentOccupancy: "Under Maintenance",
   },
@@ -187,6 +193,7 @@ const mockRooms: RoomRecord[] = [
     status: "Available",
     amenities: ["Wi-Fi", "Air Conditioning", "Garden View"],
     description: "Comfortable room overlooking the garden areas",
+    image: roomInventory[4]?.image ?? "",
     totalBookings: 42,
     currentOccupancy: "Occupied",
   },
@@ -199,6 +206,7 @@ const mockRooms: RoomRecord[] = [
     status: "Available",
     amenities: ["Wi-Fi", "Air Conditioning", "Office Space", "Mini Bar"],
     description: "Perfect for business travelers with dedicated workspace",
+    image: roomInventory[5]?.image ?? "",
     totalBookings: 25,
     currentOccupancy: "Vacant",
   },
@@ -292,6 +300,16 @@ function RoomModal({
           </div>
         </div>
 
+        {room.image ? (
+          <div className="h-56 overflow-hidden bg-surface-bone">
+            <img
+              alt={`${room.name} preview`}
+              className="h-full w-full object-cover"
+              src={room.image}
+            />
+          </div>
+        ) : null}
+
         <div className="space-y-6 p-6">
           <section>
             <h3 className="mb-4 font-eczar text-[20px] font-bold text-charred-wood">
@@ -373,6 +391,10 @@ function Detail({
       <p className="font-body-md text-[14px] text-charred-wood">{value}</p>
     </div>
   );
+}
+
+function isOccupiedRoom(room: RoomRecord) {
+  return room.currentOccupancy === "Occupied";
 }
 
 function InlineSpinner() {
@@ -1310,6 +1332,7 @@ export function AdminRoomsView({
             status: created.is_active && created.availability_status === "available" ? "Available" : "Maintenance",
             amenities: created.amenities,
             description: created.description,
+            image: created.images[0] ?? "",
             totalBookings: 0,
             currentOccupancy:
               created.is_active && created.availability_status === "available"
@@ -1340,6 +1363,7 @@ export function AdminRoomsView({
                       : "Maintenance",
                   amenities: updated.amenities,
                   description: updated.description,
+                  image: updated.images[0] ?? room.image,
                   totalBookings: room.totalBookings,
                   currentOccupancy:
                     updated.is_active && updated.availability_status === "available"
@@ -1435,7 +1459,7 @@ export function AdminRoomsView({
         <MetricCard
           accentClassName="text-blue-700"
           label="Occupied Rooms"
-          value={roomItems.filter((room) => room.currentOccupancy === "Occupied").length}
+          value={roomItems.filter(isOccupiedRoom).length}
         />
         <MetricCard
           accentClassName="text-amber-700"
@@ -1468,26 +1492,42 @@ export function AdminRoomsView({
             className="overflow-hidden border border-surface-container bg-white shadow-sm transition-shadow hover:shadow-md"
             key={room.id}
           >
-            <div className="bg-surface-bone p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center bg-primary-fixed text-primary">
-                    <Icon name="bed" className="text-[24px]" />
+            <div className="bg-surface-bone p-0">
+              <div className="relative h-44 overflow-hidden bg-charred-wood">
+                {room.image ? (
+                  <img
+                    alt={`${room.name} preview`}
+                    className="h-full w-full object-cover"
+                    src={room.image}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-charred-wood via-primary to-laterite-red text-white">
+                    <Icon name="bed" className="text-[44px]" />
                   </div>
-                  <div>
-                    <h2 className="font-eczar text-[20px] font-bold text-charred-wood">
-                      {room.name}
-                    </h2>
-                    <p className="font-body-md text-[12px] text-outline-clay">
-                      {room.type}
-                    </p>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-white/90 p-2 text-primary shadow-sm">
+                        <Icon name="bed" className="text-[20px]" />
+                      </div>
+                      <div>
+                        <h2 className="font-eczar text-[20px] font-bold text-white">
+                          {room.name}
+                        </h2>
+                        <p className="font-body-md text-[12px] text-white/85">
+                          {room.type}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-[12px] font-bold ${badgeClass(room.status)}`}
+                    >
+                      {room.status}
+                    </span>
                   </div>
                 </div>
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-[12px] font-bold ${badgeClass(room.status)}`}
-                >
-                  {room.status}
-                </span>
               </div>
             </div>
 

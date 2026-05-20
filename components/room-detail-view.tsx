@@ -1,9 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Image from "next/image";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import Icon from "@/components/icon";
+import RoomImage from "@/components/room-image";
+import {
+  addDaysToInput,
+  findNextAvailableDate,
+  normalizeBookingDates,
+  todayDateInput,
+  type BookingWindow,
+} from "@/lib/booking-dates";
 import type { Room } from "@/lib/rooms";
 
 function parseDate(value: string) {
@@ -24,10 +32,108 @@ function calculateNights(checkIn: string, checkOut: string) {
   return Math.max(diff, 1);
 }
 
-export default function RoomDetailView({ room }: { room: Room }) {
+type BookingSnapshot = {
+  reference: string;
+  state: "available" | "booked" | "unavailable";
+};
+
+const bookingSnapshotCache = new Map<string, BookingSnapshot>();
+
+function getRoomBookingSnapshot(
+  room: Room,
+  searchParams: ReturnType<typeof useSearchParams>,
+  canReadStorage: boolean,
+) {
+  const roomId = String(room.id);
+  const isUnavailable =
+    room.isActive === false || (room.availabilityStatus ?? "available") !== "available";
+  const bookingFlag = searchParams.get("booking");
+  const bookingRoomId = searchParams.get("bookingRoomId");
+  const bookingRef = searchParams.get("bookingRef") ?? searchParams.get("reference") ?? "";
+  const storedRoomId = canReadStorage ? window.localStorage.getItem("terra:last-booked-room-id") : "";
+  const storedReference = canReadStorage
+    ? window.localStorage.getItem("terra:last-booked-reference") ?? ""
+    : "";
+
+  const cacheKey = [
+    roomId,
+    room.isActive ? "active" : "inactive",
+    room.availabilityStatus ?? "available",
+    bookingFlag ?? "",
+    bookingRoomId ?? "",
+    bookingRef,
+    storedRoomId ?? "",
+    storedReference,
+  ].join("|");
+
+  const cachedSnapshot = bookingSnapshotCache.get(cacheKey);
+  if (cachedSnapshot) {
+    return cachedSnapshot;
+  }
+
+  if (bookingFlag === "success" && bookingRoomId === roomId) {
+    const snapshot = {
+      reference: bookingRef,
+      state: "booked" as const,
+    };
+    bookingSnapshotCache.set(cacheKey, snapshot);
+    return snapshot;
+  }
+
+  if (canReadStorage) {
+    if (storedRoomId === roomId) {
+      const snapshot = {
+        reference: storedReference,
+        state: "booked" as const,
+      };
+      bookingSnapshotCache.set(cacheKey, snapshot);
+      return snapshot;
+    }
+  }
+
+  const snapshot = {
+    reference: "",
+    state: isUnavailable ? ("unavailable" as const) : ("available" as const),
+  };
+  bookingSnapshotCache.set(cacheKey, snapshot);
+  return snapshot;
+}
+
+function useRoomBookingSnapshot(room: Room, searchParams: ReturnType<typeof useSearchParams>) {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("storage", onStoreChange);
+      window.addEventListener("terra-booking-updated", onStoreChange);
+
+      return () => {
+        window.removeEventListener("storage", onStoreChange);
+        window.removeEventListener("terra-booking-updated", onStoreChange);
+      };
+    },
+    () => getRoomBookingSnapshot(room, searchParams, true),
+    () => getRoomBookingSnapshot(room, searchParams, false),
+  );
+}
+
+export default function RoomDetailView({
+  room,
+  bookingWindows = [],
+  initialCheckIn = todayDateInput(),
+  initialCheckOut,
+}: {
+  room: Room;
+  bookingWindows?: BookingWindow[];
+  initialCheckIn?: string;
+  initialCheckOut?: string;
+}) {
+  const searchParams = useSearchParams();
   const [selectedImage, setSelectedImage] = useState(0);
-  const [checkIn, setCheckIn] = useState("2024-11-20");
-  const [checkOut, setCheckOut] = useState("2024-11-25");
+  const safeInitialCheckIn = bookingWindows.length
+    ? findNextAvailableDate(bookingWindows, initialCheckIn)
+    : initialCheckIn;
+  const safeInitialCheckOut = initialCheckOut ?? addDaysToInput(safeInitialCheckIn, 1);
+  const [checkIn, setCheckIn] = useState(safeInitialCheckIn);
+  const [checkOut, setCheckOut] = useState(safeInitialCheckOut);
   const [guests, setGuests] = useState(2);
   const [rooms, setRooms] = useState(1);
 
@@ -37,6 +143,12 @@ export default function RoomDetailView({ room }: { room: Room }) {
   );
   const totalPrice = room.priceValue * nights * rooms;
   const gallery = room.gallery.length > 0 ? room.gallery : [room.image];
+  const bookingSnapshot = useRoomBookingSnapshot(room, searchParams);
+  const isBooked = bookingSnapshot.state === "booked";
+  const isRoomUnavailable = bookingSnapshot.state === "unavailable";
+  const bookedReference = bookingSnapshot.reference;
+  const minCheckIn = isBooked ? safeInitialCheckIn : todayDateInput();
+  const minCheckOut = addDaysToInput(checkIn, 1);
   const bookNowHref = useMemo(() => {
     const params = new URLSearchParams({
       checkIn,
@@ -47,6 +159,34 @@ export default function RoomDetailView({ room }: { room: Room }) {
 
     return `/checkout/${room.id}?${params.toString()}`;
   }, [checkIn, checkOut, guests, room.id, rooms]);
+
+  const updateCheckIn = (value: string) => {
+    const nextCheckIn = bookingWindows.length
+      ? findNextAvailableDate(bookingWindows, value < minCheckIn ? minCheckIn : value)
+      : value < minCheckIn
+        ? minCheckIn
+        : value;
+    const normalized = normalizeBookingDates(
+      bookingWindows,
+      nextCheckIn,
+      addDaysToInput(nextCheckIn, 1),
+      minCheckIn,
+    );
+    setCheckIn(normalized.checkIn);
+    setCheckOut(normalized.checkOut);
+  };
+
+  const updateCheckOut = (value: string) => {
+    const nextCheckOut = value <= checkIn ? addDaysToInput(checkIn, 1) : value;
+    const normalized = normalizeBookingDates(
+      bookingWindows,
+      checkIn,
+      nextCheckOut,
+      minCheckIn,
+    );
+    setCheckIn(normalized.checkIn);
+    setCheckOut(normalized.checkOut);
+  };
 
   return (
     <main className="bg-[#fafaf9] text-charred-wood">
@@ -88,9 +228,45 @@ export default function RoomDetailView({ room }: { room: Room }) {
               </div>
             </div>
 
+            {isBooked ? (
+              <div className="rounded-sm border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+                <div className="flex items-start gap-3">
+                  <Icon name="check_circle" className="mt-0.5 text-green-700" />
+                  <div>
+                    <p className="font-label-caps text-[11px] font-bold uppercase tracking-widest">
+                      Booking Confirmed
+                    </p>
+                    <p className="mt-1 font-body-md leading-relaxed">
+                      Thanks for booking this room. Your booking is saved on this device.
+                    </p>
+                    {bookedReference ? (
+                      <p className="mt-2 font-body-md text-xs font-bold text-green-800">
+                        Reference: {bookedReference}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : isRoomUnavailable ? (
+              <div className="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="flex items-start gap-3">
+                  <Icon name="warning" className="mt-0.5 text-amber-700" />
+                  <div>
+                    <p className="font-label-caps text-[11px] font-bold uppercase tracking-widest">
+                      Room Unavailable
+                    </p>
+                    <p className="mt-1 font-body-md leading-relaxed">
+                      This room is currently unavailable for booking.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-4">
               <div className="relative h-[400px] overflow-hidden bg-white border border-surface-container">
-                <Image
+                <RoomImage
+                  key={gallery[selectedImage]}
                   alt={`${room.name} gallery image ${selectedImage + 1}`}
                   className="object-cover"
                   fill
@@ -111,7 +287,7 @@ export default function RoomDetailView({ room }: { room: Room }) {
                     onClick={() => setSelectedImage(index)}
                     type="button"
                   >
-                    <Image
+                    <RoomImage
                       alt={`${room.name} thumbnail ${index + 1}`}
                       className="object-cover"
                       fill
@@ -177,7 +353,8 @@ export default function RoomDetailView({ room }: { room: Room }) {
                     </label>
                     <input
                       className="w-full bg-white border border-surface-container px-3 py-2 font-body-md text-base text-charred-wood"
-                      onChange={(event) => setCheckIn(event.target.value)}
+                      min={minCheckIn}
+                      onChange={(event) => updateCheckIn(event.target.value)}
                       type="date"
                       value={checkIn}
                     />
@@ -189,7 +366,8 @@ export default function RoomDetailView({ room }: { room: Room }) {
                     </label>
                     <input
                       className="w-full bg-white border border-surface-container px-3 py-2 font-body-md text-base text-charred-wood"
-                      onChange={(event) => setCheckOut(event.target.value)}
+                      min={minCheckOut}
+                      onChange={(event) => updateCheckOut(event.target.value)}
                       type="date"
                       value={checkOut}
                     />
@@ -249,12 +427,30 @@ export default function RoomDetailView({ room }: { room: Room }) {
                   </div>
                 </div>
 
-                <Link
-                  className="w-full mt-6 inline-flex items-center justify-center bg-primary text-white px-6 py-4 font-label-caps text-sm font-bold uppercase hover:bg-laterite-red transition-colors"
-                  href={bookNowHref}
-                >
-                  Book Now
-                </Link>
+                {isBooked ? (
+                  <button
+                    className="w-full mt-6 inline-flex items-center justify-center bg-green-700 text-white px-6 py-4 font-label-caps text-sm font-bold uppercase cursor-not-allowed opacity-90"
+                    disabled
+                    type="button"
+                  >
+                    Thank You for Booking
+                  </button>
+                ) : isRoomUnavailable ? (
+                  <button
+                    className="w-full mt-6 inline-flex items-center justify-center bg-surface-container text-outline-clay px-6 py-4 font-label-caps text-sm font-bold uppercase cursor-not-allowed"
+                    disabled
+                    type="button"
+                  >
+                    Room Unavailable
+                  </button>
+                ) : (
+                  <Link
+                    className="w-full mt-6 inline-flex items-center justify-center bg-primary text-white px-6 py-4 font-label-caps text-sm font-bold uppercase hover:bg-laterite-red transition-colors"
+                    href={bookNowHref}
+                  >
+                    Book Now
+                  </Link>
+                )}
 
                 <p className="mt-4 text-center font-body-md text-xs text-outline-clay">
                   You won&apos;t be charged yet.

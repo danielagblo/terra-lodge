@@ -4,6 +4,7 @@ import { type FormEvent, type ReactNode, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
+import { addDaysToInput, todayDateInput } from "@/lib/booking-dates";
 
 type AvailabilityValues = {
   checkIn: string;
@@ -35,9 +36,10 @@ export default function AvailabilitySearch({
   onNavigate?: () => void;
 }) {
   const router = useRouter();
+  const today = todayDateInput();
   const [values, setValues] = useState<AvailabilityValues>({
-    checkIn: "2024-11-20",
-    checkOut: "2024-11-25",
+    checkIn: today,
+    checkOut: addDaysToInput(today, 1),
     guests: 2,
     roomType: "Suite",
   });
@@ -61,6 +63,26 @@ export default function AvailabilitySearch({
     }));
   };
 
+  const updateCheckIn = (value: string) => {
+    setValues((current) => {
+      const nextCheckOut =
+        current.checkOut <= value ? addDaysToInput(value, 1) : current.checkOut;
+
+      return {
+        ...current,
+        checkIn: value,
+        checkOut: nextCheckOut,
+      };
+    });
+  };
+
+  const updateCheckOut = (value: string) => {
+    setValues((current) => ({
+      ...current,
+      checkOut: value <= current.checkIn ? addDaysToInput(current.checkIn, 1) : value,
+    }));
+  };
+
   return (
     <form
       className={compact ? "flex flex-col gap-4" : "w-full"}
@@ -72,14 +94,16 @@ export default function AvailabilitySearch({
             <Field
               compact
               label="Check-in"
+              min={today}
               value={values.checkIn}
-              onChange={(value) => updateValue("checkIn", value)}
+              onChange={updateCheckIn}
             />
             <Field
               compact
               label="Check-out"
+              min={addDaysToInput(values.checkIn, 1)}
               value={values.checkOut}
-              onChange={(value) => updateValue("checkOut", value)}
+              onChange={updateCheckOut}
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -115,14 +139,16 @@ export default function AvailabilitySearch({
           <Field
             compact={compact}
             label="Check-in"
+            min={today}
             value={values.checkIn}
-            onChange={(value) => updateValue("checkIn", value)}
+            onChange={updateCheckIn}
           />
           <Field
             compact={compact}
             label="Check-out"
+            min={addDaysToInput(values.checkIn, 1)}
             value={values.checkOut}
-            onChange={(value) => updateValue("checkOut", value)}
+            onChange={updateCheckOut}
           />
           <SelectField
             compact={compact}
@@ -179,11 +205,13 @@ function Field({
   compact,
   label,
   value,
+  min,
   onChange,
 }: {
   compact: boolean;
   label: string;
   value: string;
+  min: string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -205,6 +233,7 @@ function Field({
         }
         onChange={(event) => onChange(event.target.value)}
         type="date"
+        min={min}
         value={value}
       />
     </div>

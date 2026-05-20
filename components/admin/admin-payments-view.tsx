@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Icon from "@/components/icon";
 import type { AdminPaymentRecord, AdminPaymentStat } from "@/lib/admin-data";
 import { AdminPagination } from "@/components/admin/admin-pagination";
@@ -305,6 +305,56 @@ function statusIcon(status: PaymentStatus) {
   }
 }
 
+function escapeCsvValue(value: string) {
+  if (/[,"\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+
+  return value;
+}
+
+function toPaymentsCsv(payments: PaymentRecord[]) {
+  const headers = [
+    "Payment ID",
+    "Booking ID",
+    "Guest Name",
+    "Guest Email",
+    "Room",
+    "Method",
+    "Provider",
+    "Amount",
+    "Status",
+    "Date",
+    "Transaction Ref",
+    "Check In",
+    "Check Out",
+    "Nights",
+  ];
+
+  const rows = payments.map((payment) =>
+    [
+      payment.id,
+      payment.bookingId,
+      payment.guestName,
+      payment.guestEmail,
+      payment.room,
+      payment.method,
+      payment.provider,
+      String(payment.amount),
+      payment.status,
+      payment.date,
+      payment.transactionRef,
+      payment.checkIn,
+      payment.checkOut,
+      String(payment.nights),
+    ]
+      .map((value) => escapeCsvValue(value))
+      .join(","),
+  );
+
+  return [headers.map(escapeCsvValue).join(","), ...rows].join("\n");
+}
+
 function PaymentModal({
   payment,
   onClose,
@@ -429,34 +479,45 @@ export function AdminPaymentsView({
   const stats = statsProp;
   const revenueTrend = revenueTrendProp;
   const statusData = statusDataProp;
+  const handleExportReport = () => {
+    const csv = toPaymentsCsv(filteredPayments);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
 
-  const filteredPayments = useMemo(() => {
-    return payments.filter((payment) => {
-      const matchesFilter =
-        selectedFilter === "all" ||
-        payment.status.toLowerCase() === selectedFilter;
-      const matchesSearch =
-        payment.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.transactionRef.toLowerCase().includes(searchTerm.toLowerCase());
+    anchor.href = url;
+    anchor.download = `terra-lodge-payments-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
 
-      return matchesFilter && matchesSearch;
-    });
-  }, [payments, searchTerm, selectedFilter]);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const filteredPayments = payments.filter((payment) => {
+    const matchesFilter =
+      selectedFilter === "all" || payment.status.toLowerCase() === selectedFilter;
+    const matchesSearch =
+      payment.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.transactionRef.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesFilter && matchesSearch;
+  });
 
   const pageCount = Math.max(Math.ceil(filteredPayments.length / pageSize), 1);
   const displayPage = Math.min(page, pageCount);
 
-  const paginatedPayments = useMemo(() => {
-    const start = (displayPage - 1) * pageSize;
-    return filteredPayments.slice(start, start + pageSize);
-  }, [displayPage, filteredPayments]);
+  const start = (displayPage - 1) * pageSize;
+  const paginatedPayments = filteredPayments.slice(start, start + pageSize);
 
   return (
     <div>
       <PageHeader
         action={
-          <button className="inline-flex items-center gap-2 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red">
+          <button
+            className="inline-flex items-center gap-2 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+            onClick={handleExportReport}
+            type="button"
+          >
             <Icon name="download" className="text-[18px]" />
             <span>Export Report</span>
           </button>

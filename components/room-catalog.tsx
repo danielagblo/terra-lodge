@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Icon from "@/components/icon";
 import RoomCard from "@/components/room-card";
+import RoomImage from "@/components/room-image";
 import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
@@ -13,6 +13,7 @@ const amenityOptions = ["A/C", "Wi-Fi", "Mini Bar", "Balcony", "Bathtub"] as con
 const viewTypes = ["City View", "Garden View", "Pool View"] as const;
 
 function FilterPanel({
+  searchTerm,
   checkIn,
   checkOut,
   priceRange,
@@ -23,6 +24,7 @@ function FilterPanel({
   selectedViewType,
   onCheckInChange,
   onCheckOutChange,
+  onSearchTermChange,
   onPriceRangeChange,
   onMaxGuestsChange,
   onBedTypeChange,
@@ -32,6 +34,7 @@ function FilterPanel({
   onReset,
   onClose,
 }: {
+  searchTerm: string;
   checkIn: string;
   checkOut: string;
   priceRange: [number, number];
@@ -42,6 +45,7 @@ function FilterPanel({
   selectedViewType: string;
   onCheckInChange: (value: string) => void;
   onCheckOutChange: (value: string) => void;
+  onSearchTermChange?: (value: string) => void;
   onPriceRangeChange: (value: number) => void;
   onMaxGuestsChange: (value: number) => void;
   onBedTypeChange: (value: string) => void;
@@ -67,6 +71,18 @@ function FilterPanel({
             <Icon name="close" className="text-[26px]" />
           </button>
         ) : null}
+      </div>
+
+      <div>
+        <div className="flex flex-col font-['Nimbus_Sans:Bold',sans-serif] justify-center leading-[0] not-italic text-[#2f2f2f] text-[14px] mb-[12px]">
+          <p className="leading-[20px]">Search Rooms</p>
+        </div>
+        <input
+          className="w-full bg-white border border-[#f0eded] px-[12px] py-[8px] font-['Montserrat:Regular',sans-serif] text-[14px] text-[#2f2f2f]"
+          onChange={(event) => onSearchTermChange?.(event.target.value)}
+          placeholder="Search by room name, type, or description"
+          value={searchTerm}
+        />
       </div>
 
       <div>
@@ -339,6 +355,7 @@ export default function RoomCatalog({
     checkIn?: string;
     checkOut?: string;
     maxGuests?: number;
+    searchTerm?: string;
     selectedBedType?: string;
     selectedRoomType?: string;
     selectedViewType?: string;
@@ -346,6 +363,7 @@ export default function RoomCatalog({
   rooms: readonly Room[];
 }) {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [searchTerm, setSearchTerm] = useState(initialFilters?.searchTerm ?? "");
   const [checkIn, setCheckIn] = useState(initialFilters?.checkIn ?? "");
   const [checkOut, setCheckOut] = useState(initialFilters?.checkOut ?? "");
   const [selectedBedType, setSelectedBedType] = useState<string>(
@@ -364,7 +382,25 @@ export default function RoomCatalog({
   const roomsPerPage = 6;
 
   const filteredRooms = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
     return rooms.filter((room) => {
+      if (
+        normalizedSearch &&
+        ![
+          room.name,
+          room.description,
+          room.roomType,
+          room.bedType,
+          room.viewType,
+          ...room.amenities,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch)
+      ) {
+        return false;
+      }
       if (room.priceValue < priceRange[0] || room.priceValue > priceRange[1]) {
         return false;
       }
@@ -388,6 +424,7 @@ export default function RoomCatalog({
     maxGuests,
     selectedViewType,
     selectedAmenities,
+    searchTerm,
   ]);
 
   const totalPages = Math.ceil(filteredRooms.length / roomsPerPage);
@@ -405,6 +442,7 @@ export default function RoomCatalog({
 
   const resetFilters = () => {
     setPriceRange([0, 1000]);
+    setSearchTerm("");
     setCheckIn("");
     setCheckOut("");
     setSelectedBedType("");
@@ -422,6 +460,11 @@ export default function RoomCatalog({
 
   const updateCheckIn = (value: string) => {
     setCheckIn(value);
+    setCurrentPage(1);
+  };
+
+  const updateSearchTerm = (value: string) => {
+    setSearchTerm(value);
     setCurrentPage(1);
   };
 
@@ -454,7 +497,7 @@ export default function RoomCatalog({
     <>
       <section className="relative py-[72px] md:py-[80px] overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <Image
+          <RoomImage
             alt="Hero background"
             className="object-cover"
             fill
@@ -508,6 +551,7 @@ export default function RoomCatalog({
 
           <aside className="hidden lg:block bg-white border border-[#f0eded] p-[24px] h-fit sticky top-[24px]">
             <FilterPanel
+              searchTerm={searchTerm}
               checkIn={checkIn}
               checkOut={checkOut}
               maxGuests={maxGuests}
@@ -515,6 +559,7 @@ export default function RoomCatalog({
               onBedTypeChange={updateBedType}
               onCheckInChange={updateCheckIn}
               onCheckOutChange={updateCheckOut}
+              onSearchTermChange={updateSearchTerm}
               onMaxGuestsChange={updateMaxGuests}
               onPriceRangeChange={updatePriceRange}
               onReset={resetFilters}
@@ -581,6 +626,7 @@ export default function RoomCatalog({
           <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-[28px] bg-white shadow-2xl">
             <div className="p-6 pt-5">
               <FilterPanel
+                searchTerm={searchTerm}
                 checkIn={checkIn}
                 checkOut={checkOut}
                 maxGuests={maxGuests}
@@ -589,6 +635,7 @@ export default function RoomCatalog({
                 onCheckInChange={updateCheckIn}
                 onCheckOutChange={updateCheckOut}
                 onClose={() => setIsFiltersOpen(false)}
+                onSearchTermChange={updateSearchTerm}
                 onMaxGuestsChange={updateMaxGuests}
                 onPriceRangeChange={updatePriceRange}
                 onReset={resetFilters}
