@@ -37,7 +37,9 @@ loadEnvFile(join(root, ".env"));
 const connectionString = process.env.NEON_URL ?? process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error("Missing NEON_URL or DATABASE_URL in your environment files.");
+  throw new Error(
+    "Missing NEON_URL or DATABASE_URL in your environment files.",
+  );
 }
 
 const schemaSql = await readFile(join(root, "db", "schema.sql"), "utf8");
@@ -47,9 +49,24 @@ const client = new Client({ connectionString });
 
 try {
   await client.connect();
-  await client.query(schemaSql);
-  await client.query(seedSql);
-  console.log("Database schema created and seed data inserted.");
+
+  // Check if the 'rooms' table already exists
+  const checkTableQuery = `
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables
+      WHERE table_name = 'rooms'
+    );
+  `;
+  const result = await client.query(checkTableQuery);
+  const tableExists = result.rows[0].exists;
+
+  if (tableExists) {
+    console.log("Tables already exist. Skipping schema creation and seeding.");
+  } else {
+    await client.query(schemaSql);
+    await client.query(seedSql);
+    console.log("Database schema created and seed data inserted.");
+  }
 } finally {
   await client.end();
 }

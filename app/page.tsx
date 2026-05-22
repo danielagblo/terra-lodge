@@ -35,6 +35,7 @@ export default async function Page() {
             sizes="100vw"
             src={siteContent.home.hero.imageSrc}
           />
+          <div className="absolute inset-0 bg-[#6c2f00]/50 mix-blend-multiply" />
         </div>
         <div className="relative z-10 text-center max-w-4xl px-4">
           <span className="inline-block bg-dry-grass/90 text-charred-wood px-4 py-1 font-label-caps text-[10px] font-bold uppercase tracking-widest mb-6 shadow-sm">

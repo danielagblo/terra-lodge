@@ -48,8 +48,8 @@ export const siteContent = {
       description:
         "Quality accommodation with traditional Ghanaian hospitality. Your serene home away from home.",
       imageAlt: "A clean, sunlit bedroom in Terra Lodge",
-      imageSrc:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuCTlrmwjBV3wjEMNgLFGoZn8HZ-OKbxA5RVS6wH1nXZqH4vJ7zvWP0F4d_hd-V6SwqCQ81ZIVoMT2OUtTz3x_HXTIwiSlGsuqPiKX0dD83GTaDeFBvkWLBUGMZyUDoIC7ht9rHvfUigz3Oq7H2qICVQKXV-Re-7e-nTJlHQ-tcQWyGN0IpblXdifJrC0j1bkV03ocxo7Yc87d68936hE_gVsb00cYEfzXsAwM8uQx3bR0JgnxywA1F_wzsBRGFEJCNfWm7w0jf-Ki93",
+      imageSrc: "/terra-santa-lodge.jpg",
+      // "https://lh3.googleusercontent.com/aida-public/AB6AXuCTlrmwjBV3wjEMNgLFGoZn8HZ-OKbxA5RVS6wH1nXZqH4vJ7zvWP0F4d_hd-V6SwqCQ81ZIVoMT2OUtTz3x_HXTIwiSlGsuqPiKX0dD83GTaDeFBvkWLBUGMZyUDoIC7ht9rHvfUigz3Oq7H2qICVQKXV-Re-7e-nTJlHQ-tcQWyGN0IpblXdifJrC0j1bkV03ocxo7Yc87d68936hE_gVsb00cYEfzXsAwM8uQx3bR0JgnxywA1F_wzsBRGFEJCNfWm7w0jf-Ki93",
     },
     amenities: [
       {
