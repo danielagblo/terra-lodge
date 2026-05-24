@@ -2,14 +2,23 @@ import Link from "next/link";
 import Icon from "@/components/icon";
 import RoomImage from "@/components/room-image";
 import type { Room } from "@/lib/rooms";
+import type { PriceConversion } from "@/lib/currency";
+import { formatConvertedAmount } from "@/lib/currency";
 
 export default function RoomCard({
   room,
   className = "",
+  priceConversion,
 }: {
   room: Room;
   className?: string;
+  priceConversion?: PriceConversion | null;
 }) {
+  const convertedAmount =
+    priceConversion && priceConversion.currencyCode !== "GHS"
+      ? formatConvertedAmount(room.priceValue * priceConversion.rate, priceConversion.currencyCode)
+      : null;
+
   return (
     <article
       className={`bg-white border border-surface-container shadow-sm hover:shadow-md transition-shadow group flex flex-col ${className}`.trim()}
@@ -26,9 +35,16 @@ export default function RoomCard({
       <div className="p-6 flex-grow flex flex-col gap-4">
         <div className="flex justify-between items-start gap-4">
           <h3 className="font-headline-sm font-bold text-xl">{room.name}</h3>
-          <span className="font-bold text-primary whitespace-nowrap">
-            GHS {room.priceValue}/night
-          </span>
+          <div className="text-right">
+            <span className="block font-bold text-primary whitespace-nowrap">
+              GHS {room.priceValue}/night
+            </span>
+            {convertedAmount ? (
+              <span className="block text-[11px] font-semibold text-outline-clay">
+                Approx. {convertedAmount}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-wrap gap-4 text-outline-clay text-sm font-body-md">
           {room.features.slice(0, 2).map((feature) => (

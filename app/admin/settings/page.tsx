@@ -1,5 +1,8 @@
-import { AdminSettingsView } from "@/components/admin/admin-settings-view";
+// import { AdminSettingsView } from "@/components/admin/admin-settings-view";
+
+import NotFound from "@/app/not-found";
 
 export default function AdminSettingsPage() {
-  return <AdminSettingsView />;
+  return <NotFound />;
+  // return <AdminSettingsView />;
 }

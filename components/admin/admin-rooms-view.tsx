@@ -24,9 +24,10 @@ import Icon from "@/components/icon";
 import type { AdminRoomRecord } from "@/lib/admin-data";
 import { roomInventory } from "@/lib/rooms";
 import { AdminPagination } from "@/components/admin/admin-pagination";
+import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 
-type RoomStatus = "Available" | "Maintenance";
-type CurrentOccupancy = "Vacant" | "Occupied" | "Under Maintenance";
+type RoomStatus = "Available" | "Maintenance" | "Deleted";
+type CurrentOccupancy = "Vacant" | "Occupied" | "Under Maintenance" | "Deleted";
 
 type RoomRecord = {
   id: string;
@@ -266,9 +267,31 @@ function badgeClass(status: RoomStatus) {
       return "bg-green-100 text-green-800";
     case "maintenance":
       return "bg-amber-100 text-amber-800";
+    case "deleted":
+      return "bg-slate-200 text-slate-700";
     default:
       return "bg-surface-container text-outline-clay";
   }
+}
+
+function roomStatusFromFlags(isActive: boolean, availabilityStatus: string): RoomStatus {
+  if (!isActive) {
+    return "Deleted";
+  }
+
+  return availabilityStatus === "available" ? "Available" : "Maintenance";
+}
+
+function roomOccupancyFromFlags(
+  isActive: boolean,
+  availabilityStatus: string,
+  currentOccupancy: CurrentOccupancy = "Vacant",
+): CurrentOccupancy {
+  if (!isActive) {
+    return "Deleted";
+  }
+
+  return availabilityStatus === "available" ? currentOccupancy : "Under Maintenance";
 }
 
 function RoomModal({
@@ -348,7 +371,7 @@ function RoomModal({
 
           <section className="border-t border-surface-container pt-6">
             <p className="mb-1 font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
-              Total Bookings
+              Active Bookings
             </p>
             <div className="font-nimbus text-[32px] font-bold text-charred-wood">
               {room.totalBookings}
@@ -368,6 +391,52 @@ function RoomModal({
               type="button"
             >
               View Bookings
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteBlockedModal({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[205] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-xl overflow-hidden bg-white shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
+        <div className="bg-amber-600 p-6 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-eczar text-[28px] font-bold">Delete Blocked</h2>
+              <p className="mt-1 font-body-md text-sm">Room is currently occupied.</p>
+            </div>
+            <button
+              aria-label="Close delete blocked message"
+              className="text-white transition-colors hover:text-dry-grass"
+              onClick={onClose}
+              type="button"
+            >
+              <Icon name="close" className="text-[28px]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <p className="font-body-md text-[15px] leading-relaxed text-on-surface-variant">
+            {message}
+          </p>
+          <div className="flex justify-end">
+            <button
+              className="bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+              onClick={onClose}
+              type="button"
+            >
+              Close
             </button>
           </div>
         </div>
@@ -542,6 +611,7 @@ function RoomEditorModal({
   isLoading,
   isSaving,
   error,
+  invalidFields,
   imageUrlDraft,
   isUploadingImages,
   sensors,
@@ -560,6 +630,7 @@ function RoomEditorModal({
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
+  invalidFields: Array<keyof RoomFormState>;
   imageUrlDraft: string;
   isUploadingImages: boolean;
   sensors: ReturnType<typeof useSensors>;
@@ -576,6 +647,13 @@ function RoomEditorModal({
 }) {
   const title = mode === "create" ? "Add New Room" : "Edit Room";
   const mainImage = form.images[0];
+  const hasError = (field: keyof RoomFormState) => invalidFields.includes(field);
+  const controlClass = (field: keyof RoomFormState) =>
+    `w-full border bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors ${
+      hasError(field)
+        ? "border-red-400 focus:border-red-500"
+        : "border-surface-container focus:border-primary"
+    }`;
 
   return (
     <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4">
@@ -720,7 +798,7 @@ function RoomEditorModal({
                 Room Name
               </label>
               <input
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("name")}
                 onChange={(event) => onChange("name", event.target.value)}
                 placeholder="The Silt Suite"
                 value={form.name}
@@ -732,7 +810,7 @@ function RoomEditorModal({
                 Slug
               </label>
               <input
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("slug")}
                 onChange={(event) => onChange("slug", event.target.value)}
                 placeholder="the-silt-suite"
                 value={form.slug}
@@ -747,7 +825,7 @@ function RoomEditorModal({
                 Room Type
               </label>
               <select
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("room_type")}
                 onChange={(event) => onChange("room_type", event.target.value)}
                 value={form.room_type}
               >
@@ -765,7 +843,7 @@ function RoomEditorModal({
                 Bed Type
               </label>
               <select
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("bed_type")}
                 onChange={(event) => onChange("bed_type", event.target.value)}
                 value={form.bed_type}
               >
@@ -783,7 +861,7 @@ function RoomEditorModal({
                 View Type
               </label>
               <select
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("view_type")}
                 onChange={(event) => onChange("view_type", event.target.value)}
                 value={form.view_type}
               >
@@ -801,7 +879,7 @@ function RoomEditorModal({
                 Size
               </label>
               <select
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("size")}
                 onChange={(event) => onChange("size", event.target.value)}
                 value={form.size}
               >
@@ -820,7 +898,7 @@ function RoomEditorModal({
                 Max Guests
               </label>
               <input
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("max_guests")}
                 min={1}
                 onChange={(event) => onChange("max_guests", event.target.value)}
                 placeholder="2"
@@ -834,7 +912,7 @@ function RoomEditorModal({
                 Price Per Night
               </label>
               <input
-                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={controlClass("price_per_night")}
                 min={0}
                 onChange={(event) => onChange("price_per_night", event.target.value)}
                 placeholder="650"
@@ -850,7 +928,11 @@ function RoomEditorModal({
                 Description
               </label>
               <textarea
-                className="min-h-[120px] w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                className={`min-h-[120px] w-full border bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors ${
+                  hasError("description")
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-surface-container focus:border-primary"
+                }`}
                 onChange={(event) => onChange("description", event.target.value)}
                 placeholder="Elegant suite with panoramic views..."
                 value={form.description}
@@ -1073,11 +1155,14 @@ export function AdminRoomsView({
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [invalidFields, setInvalidFields] = useState<Array<keyof RoomFormState>>([]);
   const [isLoadingRoom, setIsLoadingRoom] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [imageUrlDraft, setImageUrlDraft] = useState("");
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null);
+  const [deleteConfirmRoom, setDeleteConfirmRoom] = useState<RoomRecord | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [form, setForm] = useState<RoomFormState>(emptyRoomForm());
   const router = useRouter();
@@ -1110,6 +1195,7 @@ export function AdminRoomsView({
   function openCreateRoom() {
     setEditorMode("create");
     setEditorError(null);
+    setInvalidFields([]);
     setImageUrlDraft("");
     setSlugTouched(false);
     setForm(emptyRoomForm());
@@ -1119,6 +1205,7 @@ export function AdminRoomsView({
   async function openEditRoom(room: RoomRecord) {
     setEditorMode("edit");
     setEditorError(null);
+    setInvalidFields([]);
     setIsLoadingRoom(true);
     setEditorOpen(true);
 
@@ -1273,6 +1360,7 @@ export function AdminRoomsView({
   async function handleSaveRoom() {
     setIsSaving(true);
     setEditorError(null);
+    setInvalidFields([]);
 
     try {
       const payload = formStateToPayload(form);
@@ -1283,8 +1371,20 @@ export function AdminRoomsView({
         return;
       }
 
-      if (!payload.name || !slug || !payload.description || !payload.bed_type || !payload.room_type || !payload.view_type || !payload.size || !payload.price_per_night || !payload.max_guests) {
-        setEditorError("Please complete all required room fields.");
+      const nextInvalidFields: Array<keyof RoomFormState> = [];
+      if (!payload.name) nextInvalidFields.push("name");
+      if (!slug) nextInvalidFields.push("slug");
+      if (!payload.description) nextInvalidFields.push("description");
+      if (!payload.bed_type) nextInvalidFields.push("bed_type");
+      if (!payload.room_type) nextInvalidFields.push("room_type");
+      if (!payload.view_type) nextInvalidFields.push("view_type");
+      if (!payload.size) nextInvalidFields.push("size");
+      if (!payload.price_per_night) nextInvalidFields.push("price_per_night");
+      if (!payload.max_guests) nextInvalidFields.push("max_guests");
+
+      if (nextInvalidFields.length > 0) {
+        setInvalidFields(nextInvalidFields);
+        setEditorError("Please complete the highlighted room fields.");
         return;
       }
 
@@ -1322,25 +1422,25 @@ export function AdminRoomsView({
         }
 
         const created = result;
-        setRoomItems((currentRooms) => [
-          {
-            id: created.id,
-            name: created.name,
-            type: created.room_type,
-            capacity: created.max_guests,
-            pricePerNight: created.price_per_night,
-            status: created.is_active && created.availability_status === "available" ? "Available" : "Maintenance",
-            amenities: created.amenities,
-            description: created.description,
-            image: created.images[0] ?? "",
-            totalBookings: 0,
-            currentOccupancy:
-              created.is_active && created.availability_status === "available"
-                ? "Vacant"
-                : "Under Maintenance",
-          },
-          ...currentRooms,
-        ]);
+          setRoomItems((currentRooms) => [
+            {
+              id: created.id,
+              name: created.name,
+              type: created.room_type,
+              capacity: created.max_guests,
+              pricePerNight: created.price_per_night,
+              status: roomStatusFromFlags(created.is_active, created.availability_status),
+              amenities: created.amenities,
+              description: created.description,
+              image: created.images[0] ?? "",
+              totalBookings: 0,
+              currentOccupancy: roomOccupancyFromFlags(
+                created.is_active,
+                created.availability_status,
+              ),
+            },
+            ...currentRooms,
+          ]);
       } else {
         if (!isRoomApiRecord(result)) {
           setEditorError("Unable to save room.");
@@ -1351,27 +1451,23 @@ export function AdminRoomsView({
         setRoomItems((currentRooms) =>
           currentRooms.map((room) =>
             room.id === updated.id
-              ? {
-                  id: updated.id,
-                  name: updated.name,
-                  type: updated.room_type,
-                  capacity: updated.max_guests,
-                  pricePerNight: updated.price_per_night,
-                  status:
-                    updated.is_active && updated.availability_status === "available"
-                      ? "Available"
-                      : "Maintenance",
-                  amenities: updated.amenities,
-                  description: updated.description,
-                  image: updated.images[0] ?? room.image,
-                  totalBookings: room.totalBookings,
-                  currentOccupancy:
-                    updated.is_active && updated.availability_status === "available"
-                      ? room.currentOccupancy === "Under Maintenance"
-                        ? "Vacant"
-                        : room.currentOccupancy
-                      : "Under Maintenance",
-                }
+                ? {
+                    id: updated.id,
+                    name: updated.name,
+                    type: updated.room_type,
+                    capacity: updated.max_guests,
+                    pricePerNight: updated.price_per_night,
+                    status: roomStatusFromFlags(updated.is_active, updated.availability_status),
+                    amenities: updated.amenities,
+                    description: updated.description,
+                    image: updated.images[0] ?? room.image,
+                    totalBookings: room.totalBookings,
+                    currentOccupancy: roomOccupancyFromFlags(
+                      updated.is_active,
+                      updated.availability_status,
+                      room.currentOccupancy === "Under Maintenance" ? "Vacant" : room.currentOccupancy,
+                    ),
+                  }
               : room,
           ),
         );
@@ -1381,6 +1477,7 @@ export function AdminRoomsView({
       setForm(emptyRoomForm());
       setImageUrlDraft("");
       setSlugTouched(false);
+      setInvalidFields([]);
       router.refresh();
     } catch {
       setEditorError("Unable to save room.");
@@ -1390,14 +1487,6 @@ export function AdminRoomsView({
   }
 
   async function handleDeleteRoom(room: RoomRecord) {
-    const confirmed = window.confirm(
-      `Delete ${room.name}? This will permanently remove the room record.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
       setDeletingRoomId(room.id);
       const response = await fetch(`/api/rooms/${room.id}`, {
@@ -1410,23 +1499,37 @@ export function AdminRoomsView({
           isRecord(payload) && typeof payload.error === "string"
             ? payload.error
             : "Unable to delete room.";
-        setEditorError(message);
-        setEditorOpen(true);
+        if (response.status === 409) {
+          setDeleteBlockedMessage(message);
+        } else {
+          setEditorError(message);
+          setEditorOpen(true);
+        }
         return;
       }
 
       setRoomItems((currentRooms) =>
-        currentRooms.filter((item) => item.id !== room.id),
+        currentRooms.map((item) =>
+          item.id === room.id
+            ? {
+                ...item,
+                status: "Deleted",
+                currentOccupancy: "Deleted",
+              }
+            : item,
+        ),
       );
 
       if (selectedRoom?.id === room.id) {
         setSelectedRoom(null);
       }
 
+      setDeleteConfirmRoom(null);
       router.refresh();
     } catch {
       setEditorError("Unable to delete room.");
       setEditorOpen(true);
+      setDeleteConfirmRoom(null);
     } finally {
       setDeletingRoomId(null);
     }
@@ -1564,7 +1667,7 @@ export function AdminRoomsView({
 
               <div className="grid grid-cols-2 gap-3">
                 <Detail label="Current" value={room.currentOccupancy} />
-                <Detail label="Bookings" value={String(room.totalBookings)} />
+                <Detail label="Active Bookings" value={String(room.totalBookings)} />
               </div>
 
               <div className="flex gap-2 border-t border-surface-container pt-4">
@@ -1586,7 +1689,7 @@ export function AdminRoomsView({
                 <button
                   className="border border-red-300 bg-white px-4 py-3 text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
                   disabled={deletingRoomId === room.id}
-                  onClick={() => handleDeleteRoom(room)}
+                  onClick={() => setDeleteConfirmRoom(room)}
                   type="button"
                 >
                   {deletingRoomId === room.id ? (
@@ -1618,9 +1721,28 @@ export function AdminRoomsView({
         />
       ) : null}
 
+      {deleteBlockedMessage ? (
+        <DeleteBlockedModal
+          message={deleteBlockedMessage}
+          onClose={() => setDeleteBlockedMessage(null)}
+        />
+      ) : null}
+
+      {deleteConfirmRoom ? (
+        <AdminConfirmModal
+          busy={deletingRoomId === deleteConfirmRoom.id}
+          confirmLabel="Delete Room"
+          description={`Delete ${deleteConfirmRoom.name} from live inventory?`}
+          onClose={() => setDeleteConfirmRoom(null)}
+          onConfirm={() => handleDeleteRoom(deleteConfirmRoom)}
+          title="Delete Room"
+        />
+      ) : null}
+
       {editorOpen ? (
         <RoomEditorModal
           error={editorError}
+          invalidFields={invalidFields}
           form={form}
           isLoading={isLoadingRoom}
           isSaving={isSaving}
@@ -1647,13 +1769,17 @@ export function AdminRoomsView({
 
               return nextForm;
             });
+            setInvalidFields((current) =>
+              current.filter((item) => item !== field),
+            );
           }}
           onClose={() => {
-            setEditorOpen(false);
-            setEditorError(null);
-            setImageUrlDraft("");
-            setSlugTouched(false);
-            setForm(emptyRoomForm());
+      setEditorOpen(false);
+      setEditorError(null);
+      setInvalidFields([]);
+      setImageUrlDraft("");
+      setSlugTouched(false);
+      setForm(emptyRoomForm());
           }}
           onAddImageUrl={handleAddImageUrl}
           onDragEndImage={handleImageDragEnd}

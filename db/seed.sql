@@ -263,3 +263,57 @@ on conflict (slug) do update set
   availability_status = excluded.availability_status,
   availability_blocks = excluded.availability_blocks,
   featured = excluded.featured;
+
+insert into amenities (
+  slug,
+  title,
+  description,
+  icon,
+  featured,
+  sort_order,
+  is_active
+)
+values
+  (
+    'fast-wi-fi',
+    'Fast Wi-Fi',
+    'Stay connected throughout the lodge.',
+    'wifi',
+    true,
+    0,
+    true
+  ),
+  (
+    'secure-parking',
+    'Secure Parking',
+    '24/7 security for your peace of mind.',
+    'local_parking',
+    true,
+    1,
+    true
+  ),
+  (
+    'local-dining',
+    'Local Dining',
+    'Authentic Ghanaian meals daily.',
+    'restaurant',
+    true,
+    2,
+    true
+  ),
+  (
+    'full-ac',
+    'Full A/C',
+    'Climate controlled rooms for comfort.',
+    'ac_unit',
+    true,
+    3,
+    true
+  )
+on conflict (slug) do update set
+  title = excluded.title,
+  description = excluded.description,
+  icon = excluded.icon,
+  featured = excluded.featured,
+  sort_order = excluded.sort_order,
+  is_active = excluded.is_active;

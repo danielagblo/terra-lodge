@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Icon from "@/components/icon";
@@ -16,9 +17,10 @@ const navItems: AdminNavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/admin/bookings", label: "Bookings", icon: "calendar_month" },
   { href: "/admin/payments", label: "Payments", icon: "payments" },
+  { href: "/admin/amenities", label: "Amenities", icon: "spa" },
   { href: "/admin/rooms", label: "Rooms", icon: "bed" },
   { href: "/admin/customers", label: "Customers", icon: "groups" },
-  { href: "/admin/settings", label: "Settings", icon: "settings" },
+  // { href: "/admin/settings", label: "Settings", icon: "settings" },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -34,7 +36,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-surface-bone text-charred-wood">
       <button
-        aria-label={sidebarOpen ? "Close admin navigation" : "Open admin navigation"}
+        aria-label={
+          sidebarOpen ? "Close admin navigation" : "Open admin navigation"
+        }
         className="fixed left-4 top-4 z-[70] inline-flex h-12 w-12 items-center justify-center border border-surface-container bg-white text-charred-wood shadow-lg lg:hidden"
         onClick={() => setSidebarOpen((current) => !current)}
         type="button"
@@ -50,9 +54,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="flex h-full flex-col">
           <div className="border-b border-surface-container px-6 py-6">
             <Link className="block" href="/admin/dashboard">
-              <span className="font-eczar text-2xl font-bold text-primary">
-                {siteContent.brand.name}
-              </span>
+              <div className="flex items-center gap-3">
+                <Image
+                  alt={`${siteContent.brand.name} logo`}
+                  className="h-12 w-12 rounded-full object-cover"
+                  height={48}
+                  src="/logo.png"
+                  width={48}
+                />
+                <span className="font-eczar text-2xl font-bold text-primary">
+                  {siteContent.brand.name}
+                </span>
+              </div>
               <span className="mt-1 block font-label-caps text-[10px] font-bold uppercase tracking-[0.2em] text-outline-clay">
                 Admin Panel
               </span>

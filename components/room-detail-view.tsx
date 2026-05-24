@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Icon from "@/components/icon";
 import RoomImage from "@/components/room-image";
+import type { PriceConversion } from "@/lib/currency";
+import { formatConvertedAmount } from "@/lib/currency";
 import {
   addDaysToInput,
   findNextAvailableDate,
@@ -120,11 +122,13 @@ export default function RoomDetailView({
   bookingWindows = [],
   initialCheckIn = todayDateInput(),
   initialCheckOut,
+  priceConversion,
 }: {
   room: Room;
   bookingWindows?: BookingWindow[];
   initialCheckIn?: string;
   initialCheckOut?: string;
+  priceConversion?: PriceConversion | null;
 }) {
   const searchParams = useSearchParams();
   const [selectedImage, setSelectedImage] = useState(0);
@@ -142,6 +146,14 @@ export default function RoomDetailView({
     [checkIn, checkOut],
   );
   const totalPrice = room.priceValue * nights * rooms;
+  const convertedRoomPrice =
+    priceConversion && priceConversion.currencyCode !== "GHS"
+      ? formatConvertedAmount(room.priceValue * priceConversion.rate, priceConversion.currencyCode)
+      : null;
+  const convertedTotalPrice =
+    priceConversion && priceConversion.currencyCode !== "GHS"
+      ? formatConvertedAmount(totalPrice * priceConversion.rate, priceConversion.currencyCode)
+      : null;
   const gallery = room.gallery.length > 0 ? room.gallery : [room.image];
   const bookingSnapshot = useRoomBookingSnapshot(room, searchParams);
   const isBooked = bookingSnapshot.state === "booked";
@@ -225,6 +237,11 @@ export default function RoomDetailView({
                 <div className="font-body-md text-sm text-outline-clay">
                   per night
                 </div>
+                {convertedRoomPrice ? (
+                  <div className="mt-2 font-body-md text-[12px] font-semibold text-outline-clay">
+                    Approx. {convertedRoomPrice}
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -425,6 +442,12 @@ export default function RoomDetailView({
                       GHS {totalPrice}
                     </span>
                   </div>
+                  {convertedTotalPrice ? (
+                    <div className="flex items-center justify-between text-sm font-semibold text-outline-clay">
+                      <span>Approx. total</span>
+                      <span>{convertedTotalPrice}</span>
+                    </div>
+                  ) : null}
                 </div>
 
                 {isBooked ? (

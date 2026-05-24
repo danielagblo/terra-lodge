@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
 import { AdminPagination } from "@/components/admin/admin-pagination";
+import { AdminConfirmModal } from "@/components/admin/admin-confirm-modal";
 
-type BookingStatus = "Confirmed" | "Pending" | "Cancelled";
-type PaymentStatus = "Paid" | "Pending" | "Refunded";
+type BookingStatus = "Confirmed" | "Pending" | "Cancelled" | "Expired";
+type PaymentStatus = "Paid" | "Pending" | "Refunded" | "Failed";
 
 type BookingRecord = {
   id: string;
@@ -117,11 +119,12 @@ const mockBookings: BookingRecord[] = [
   },
 ];
 
-const filterOptions: Array<"all" | "confirmed" | "pending" | "cancelled"> = [
+const filterOptions: Array<"all" | "confirmed" | "pending" | "cancelled" | "expired"> = [
   "all",
   "confirmed",
   "pending",
   "cancelled",
+  "expired",
 ];
 
 function badgeClassForBooking(status: BookingStatus) {
@@ -132,6 +135,8 @@ function badgeClassForBooking(status: BookingStatus) {
       return "bg-amber-100 text-amber-800";
     case "cancelled":
       return "bg-red-100 text-red-800";
+    case "expired":
+      return "bg-slate-200 text-slate-700";
     default:
       return "bg-surface-container text-charred-wood";
   }
@@ -144,6 +149,8 @@ function paymentBadgeClass(paymentStatus: PaymentStatus) {
     case "pending":
       return "bg-amber-100 text-amber-800";
     case "refunded":
+      return "bg-red-100 text-red-800";
+    case "failed":
       return "bg-red-100 text-red-800";
     default:
       return "bg-surface-container text-charred-wood";
@@ -209,9 +216,15 @@ function MetricCard({
 function Modal({
   booking,
   onClose,
+  onEdit,
+  onCancel,
+  onDelete,
 }: {
   booking: BookingRecord;
   onClose: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -284,15 +297,24 @@ function Modal({
           <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
             <button
               className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red"
+              onClick={onEdit}
               type="button"
             >
               Edit Booking
             </button>
             <button
               className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone"
+              onClick={onCancel}
               type="button"
             >
               Cancel Booking
+            </button>
+            <button
+              className="flex-1 border-2 border-red-300 bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-red-700 transition-colors hover:bg-red-50"
+              onClick={onDelete}
+              type="button"
+            >
+              Delete Booking
             </button>
           </div>
         </div>
@@ -312,6 +334,161 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
+type BookingEditForm = {
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  checkIn: string;
+  checkOut: string;
+  nights: string;
+  guests: string;
+  amount: string;
+  bookingStatus: BookingStatus;
+  paymentStatus: PaymentStatus;
+};
+
+function bookingToEditForm(booking: BookingRecord): BookingEditForm {
+  return {
+    guestName: booking.guestName,
+    guestEmail: booking.guestEmail,
+    guestPhone: booking.guestPhone,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    nights: String(booking.nights),
+    guests: String(booking.guests),
+    amount: String(booking.amount),
+    bookingStatus: booking.status,
+    paymentStatus: booking.paymentStatus,
+  };
+}
+
+function BookingEditorModal({
+  booking,
+  draft,
+  busy,
+  onClose,
+  onChange,
+  onSave,
+}: {
+  booking: BookingRecord;
+  draft: BookingEditForm;
+  busy: boolean;
+  onClose: () => void;
+  onChange: <K extends keyof BookingEditForm>(field: K, value: BookingEditForm[K]) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto bg-white">
+        <div className="bg-primary p-6 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-eczar text-[28px] font-bold">Edit Booking</h2>
+              <p className="mt-1 font-body-md text-sm">{booking.id}</p>
+            </div>
+            <button
+              aria-label="Close edit booking"
+              className="text-white transition-colors hover:text-dry-grass"
+              onClick={onClose}
+              type="button"
+            >
+              <Icon name="close" className="text-[28px]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <section className="grid gap-4 sm:grid-cols-2">
+            {[
+              { label: "Guest Name", field: "guestName", type: "text" as const },
+              { label: "Guest Email", field: "guestEmail", type: "email" as const },
+              { label: "Guest Phone", field: "guestPhone", type: "tel" as const },
+              { label: "Check-In", field: "checkIn", type: "date" as const },
+              { label: "Check-Out", field: "checkOut", type: "date" as const },
+              { label: "Nights", field: "nights", type: "number" as const },
+              { label: "Guests", field: "guests", type: "number" as const },
+              { label: "Amount", field: "amount", type: "number" as const },
+            ].map(({ label, field, type }) => (
+              <div key={field}>
+                <label className="mb-2 block font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+                  {label}
+                </label>
+                <input
+                  className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                  onChange={(event) =>
+                    onChange(
+                      field as keyof BookingEditForm,
+                      event.target.value as BookingEditForm[keyof BookingEditForm],
+                    )
+                  }
+                  type={type}
+                  value={draft[field as keyof BookingEditForm]}
+                />
+              </div>
+            ))}
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+                Booking Status
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) =>
+                  onChange("bookingStatus", event.target.value as BookingStatus)
+                }
+                value={draft.bookingStatus}
+              >
+                <option value="Confirmed">Confirmed</option>
+                <option value="Pending">Pending</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Expired">Expired</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-label-caps text-[10px] font-bold uppercase tracking-widest text-outline-clay">
+                Payment Status
+              </label>
+              <select
+                className="w-full border border-surface-container bg-white px-4 py-3 font-body-md text-[14px] text-charred-wood outline-none transition-colors focus:border-primary"
+                onChange={(event) =>
+                  onChange("paymentStatus", event.target.value as PaymentStatus)
+                }
+                value={draft.paymentStatus}
+              >
+                <option value="Paid">Paid</option>
+                <option value="Pending">Pending</option>
+                <option value="Refunded">Refunded</option>
+                <option value="Failed">Failed</option>
+              </select>
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-3 border-t border-surface-container pt-6 sm:flex-row">
+            <button
+              className="flex-1 bg-primary px-6 py-3 font-label-caps text-sm font-bold uppercase text-white transition-colors hover:bg-laterite-red disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={busy}
+              onClick={onSave}
+              type="button"
+            >
+              {busy ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              className="flex-1 border-2 border-primary bg-white px-6 py-3 font-label-caps text-sm font-bold uppercase text-primary transition-colors hover:bg-surface-bone"
+              onClick={onClose}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type AdminBookingsViewProps = {
   bookings?: BookingRecord[];
   initialSearchTerm?: string;
@@ -321,23 +498,25 @@ function AdminBookingsContent({
   bookings = mockBookings,
   initialSearchTerm = "",
 }: AdminBookingsViewProps = {}) {
+  const router = useRouter();
+  const [bookingsState, setBookingsState] = useState(bookings);
   const [selectedFilter, setSelectedFilter] = useState<
-    "all" | "confirmed" | "pending" | "cancelled"
+    "all" | "confirmed" | "pending" | "cancelled" | "expired"
   >("all");
-  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [searchTerm, setSearchTerm] = useState(() => initialSearchTerm);
   const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(
     null,
   );
+  const [editingBooking, setEditingBooking] = useState<BookingRecord | null>(null);
+  const [bookingDraft, setBookingDraft] = useState<BookingEditForm | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingDeleteBooking, setPendingDeleteBooking] = useState<BookingRecord | null>(null);
   const pageSize = 5;
 
-  useEffect(() => {
-    setSearchTerm(initialSearchTerm);
-    setPage(1);
-  }, [initialSearchTerm]);
-
   const filteredBookings = useMemo(() => {
-    return bookings.filter((booking) => {
+    return bookingsState.filter((booking) => {
       const matchesFilter =
         selectedFilter === "all" ||
         booking.status.toLowerCase() === selectedFilter;
@@ -356,7 +535,7 @@ function AdminBookingsContent({
 
       return matchesFilter && matchesSearch;
     });
-  }, [bookings, searchTerm, selectedFilter]);
+  }, [bookingsState, searchTerm, selectedFilter]);
 
   const pageCount = Math.max(Math.ceil(filteredBookings.length / pageSize), 1);
 
@@ -367,12 +546,174 @@ function AdminBookingsContent({
     return filteredBookings.slice(start, start + pageSize);
   }, [displayPage, filteredBookings]);
 
+  const openEditBooking = (booking: BookingRecord) => {
+    setSelectedBooking(null);
+    setEditingBooking(booking);
+    setBookingDraft(bookingToEditForm(booking));
+    setActionError(null);
+  };
+
+  const closeEditBooking = () => {
+    setEditingBooking(null);
+    setBookingDraft(null);
+    setActionBusy(false);
+  };
+
+  const saveBookingEdits = async () => {
+    if (!editingBooking || !bookingDraft) {
+      return;
+    }
+
+    setActionBusy(true);
+
+    try {
+      const response = await fetch(`/api/bookings/${editingBooking.bookingId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          guest_name: bookingDraft.guestName,
+          guest_email: bookingDraft.guestEmail,
+          guest_phone: bookingDraft.guestPhone,
+          check_in_date: bookingDraft.checkIn,
+          check_out_date: bookingDraft.checkOut,
+          guest_count: Number(bookingDraft.guests),
+          room_count: 1,
+          total_amount: Number(bookingDraft.amount),
+          booking_status: bookingDraft.bookingStatus.toLowerCase(),
+          payment_status:
+            bookingDraft.paymentStatus === "Paid"
+              ? "paid"
+              : bookingDraft.paymentStatus === "Refunded"
+                ? "refunded"
+                : bookingDraft.paymentStatus === "Failed"
+                  ? "failed"
+                  : "pending",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to update booking.");
+      }
+
+      setBookingsState((current) =>
+        current.map((item) =>
+          item.bookingId === editingBooking.bookingId
+            ? {
+                ...item,
+                guestName: bookingDraft.guestName,
+                guestEmail: bookingDraft.guestEmail,
+                guestPhone: bookingDraft.guestPhone,
+                checkIn: bookingDraft.checkIn,
+                checkOut: bookingDraft.checkOut,
+                nights: Number(bookingDraft.nights),
+                guests: Number(bookingDraft.guests),
+                amount: Number(bookingDraft.amount),
+                status: bookingDraft.bookingStatus,
+                paymentStatus: bookingDraft.paymentStatus,
+              }
+            : item,
+        ),
+      );
+
+      setEditingBooking(null);
+      setBookingDraft(null);
+      router.refresh();
+      setActionError(null);
+    } catch {
+      setActionError("Unable to update booking.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const cancelBooking = async (booking: BookingRecord) => {
+    setActionBusy(true);
+
+    try {
+      const response = await fetch(`/api/bookings/${booking.bookingId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          booking_status: "cancelled",
+          payment_status:
+            booking.paymentStatus === "Paid" ? "refunded" : "failed",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to cancel booking.");
+      }
+
+      setBookingsState((current) =>
+        current.map((item) =>
+          item.bookingId === booking.bookingId
+            ? {
+                ...item,
+                status: "Cancelled",
+                paymentStatus: booking.paymentStatus === "Paid" ? "Refunded" : "Failed",
+              }
+            : item,
+        ),
+      );
+
+      setSelectedBooking(null);
+      setEditingBooking(null);
+      setBookingDraft(null);
+      router.refresh();
+      setActionError(null);
+    } catch {
+      setActionError("Unable to cancel booking.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const deleteBooking = async (booking: BookingRecord) => {
+    setActionBusy(true);
+
+    try {
+      const response = await fetch(`/api/bookings/${booking.bookingId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to delete booking.");
+      }
+
+      setBookingsState((current) =>
+        current.filter((item) => item.bookingId !== booking.bookingId),
+      );
+
+      setSelectedBooking(null);
+      setEditingBooking(null);
+      setBookingDraft(null);
+      setPendingDeleteBooking(null);
+      router.refresh();
+      setActionError(null);
+    } catch {
+      setActionError("Unable to delete booking.");
+      setPendingDeleteBooking(null);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
         description="Manage reservations, payment states, and booking records for Terra Lodge."
         title="Bookings"
       />
+
+      {actionError ? (
+        <div className="mb-6 border border-red-200 bg-red-50 px-4 py-3 font-body-md text-[14px] text-red-700">
+          {actionError}
+        </div>
+      ) : null}
 
       <section className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
         <MetricCard
@@ -529,6 +870,7 @@ function AdminBookingsContent({
                       <button
                         aria-label={`Edit booking ${booking.id}`}
                         className="text-outline-clay transition-colors hover:text-primary"
+                        onClick={() => openEditBooking(booking)}
                         type="button"
                       >
                         <Icon name="edit" className="text-[20px]" />
@@ -536,6 +878,7 @@ function AdminBookingsContent({
                       <button
                         aria-label={`Delete booking ${booking.id}`}
                         className="text-red-700 transition-colors hover:text-red-900"
+                        onClick={() => setPendingDeleteBooking(booking)}
                         type="button"
                       >
                         <Icon name="delete" className="text-[20px]" />
@@ -559,7 +902,39 @@ function AdminBookingsContent({
       </section>
 
       {selectedBooking ? (
-        <Modal booking={selectedBooking} onClose={() => setSelectedBooking(null)} />
+        <Modal
+          booking={selectedBooking}
+          onCancel={() => cancelBooking(selectedBooking)}
+          onClose={() => setSelectedBooking(null)}
+          onDelete={() => setPendingDeleteBooking(selectedBooking)}
+          onEdit={() => openEditBooking(selectedBooking)}
+        />
+      ) : null}
+
+      {pendingDeleteBooking ? (
+        <AdminConfirmModal
+          busy={actionBusy}
+          confirmLabel="Delete Booking"
+          description={`Delete booking ${pendingDeleteBooking.id}?`}
+          onClose={() => setPendingDeleteBooking(null)}
+          onConfirm={() => deleteBooking(pendingDeleteBooking)}
+          title="Delete Booking"
+        />
+      ) : null}
+
+      {editingBooking && bookingDraft ? (
+        <BookingEditorModal
+          busy={actionBusy}
+          booking={editingBooking}
+          draft={bookingDraft}
+          onChange={(field, value) =>
+            setBookingDraft((current) =>
+              current ? { ...current, [field]: value } : current,
+            )
+          }
+          onClose={closeEditBooking}
+          onSave={saveBookingEdits}
+        />
       ) : null}
     </div>
   );

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Image from "next/image";
 import AvailabilitySearch from "@/components/availability-search";
 import {
@@ -7,6 +8,8 @@ import {
   LocationSection,
   TestimonialsSection,
 } from "@/components/home-sections";
+import { getAmenities } from "@/lib/amenities";
+import { getPriceConversion } from "@/lib/currency";
 import { getRooms } from "@/lib/room-data";
 import { siteContent } from "@/lib/site-content";
 
@@ -18,7 +21,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  const rooms = await getRooms();
+  const acceptLanguage = (await headers()).get("accept-language");
+  const [rooms, amenities, priceConversion] = await Promise.all([
+    getRooms(),
+    getAmenities(),
+    getPriceConversion(acceptLanguage),
+  ]);
 
   return (
     <main
@@ -54,8 +62,8 @@ export default async function Page() {
         </div>
       </section>
 
-      <AmenitiesSection amenities={siteContent.home.amenities} />
-      <FeaturedRoomsSection rooms={rooms} />
+      <AmenitiesSection amenities={amenities} />
+      <FeaturedRoomsSection priceConversion={priceConversion} rooms={rooms} />
       <TestimonialsSection testimonials={siteContent.home.testimonials} />
       <LocationSection />
     </main>

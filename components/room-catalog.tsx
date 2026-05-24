@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Icon from "@/components/icon";
 import RoomCard from "@/components/room-card";
 import RoomImage from "@/components/room-image";
+import type { PriceConversion } from "@/lib/currency";
 import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
@@ -372,6 +373,7 @@ function Pagination({
 export default function RoomCatalog({
   initialFilters,
   rooms,
+  priceConversion,
 }: {
   initialFilters?: {
     checkIn?: string;
@@ -383,6 +385,7 @@ export default function RoomCatalog({
     selectedViewType?: string;
   };
   rooms: readonly Room[];
+  priceConversion?: PriceConversion | null;
 }) {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [searchTerm, setSearchTerm] = useState(
@@ -628,7 +631,11 @@ export default function RoomCatalog({
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-[32px]">
                   {paginatedRooms.map((room) => (
-                    <RoomCard key={room.id} room={room} />
+                    <RoomCard
+                      key={room.id}
+                      priceConversion={priceConversion}
+                      room={room}
+                    />
                   ))}
                 </div>
                 {totalPages > 1 && (

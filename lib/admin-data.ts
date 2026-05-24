@@ -33,12 +33,12 @@ export type AdminRoomRecord = {
   type: string;
   capacity: number;
   pricePerNight: number;
-  status: "Available" | "Maintenance";
+  status: "Available" | "Maintenance" | "Deleted";
   amenities: string[];
   description: string;
   image: string;
   totalBookings: number;
-  currentOccupancy: "Vacant" | "Occupied" | "Under Maintenance";
+  currentOccupancy: "Vacant" | "Occupied" | "Under Maintenance" | "Deleted";
 };
 
 export type AdminRecentBooking = {
@@ -47,7 +47,7 @@ export type AdminRecentBooking = {
   room: string;
   checkIn: string;
   amount: string;
-  status: "Confirmed" | "Pending" | "Cancelled";
+  status: "Confirmed" | "Pending" | "Cancelled" | "Expired";
 };
 
 export type AdminBookingRecord = {
@@ -62,9 +62,9 @@ export type AdminBookingRecord = {
   nights: number;
   guests: number;
   amount: number;
-  status: "Confirmed" | "Pending" | "Cancelled";
+  status: "Confirmed" | "Pending" | "Cancelled" | "Expired";
   bookingDate: string;
-  paymentStatus: "Paid" | "Pending" | "Refunded";
+  paymentStatus: "Paid" | "Pending" | "Refunded" | "Failed";
 };
 
 export type AdminCustomerRecord = {
@@ -160,23 +160,27 @@ function bookingLength(checkIn: string | Date, checkOut: string | Date) {
   return Math.max(nights, 1);
 }
 
-function bookingStatusLabel(status: string): "Confirmed" | "Pending" | "Cancelled" {
+function bookingStatusLabel(status: string): "Confirmed" | "Pending" | "Cancelled" | "Expired" {
   switch (status.toLowerCase()) {
     case "confirmed":
       return "Confirmed";
     case "cancelled":
       return "Cancelled";
+    case "expired":
+      return "Expired";
     default:
       return "Pending";
   }
 }
 
-function paymentStatusLabel(status: string): "Paid" | "Pending" | "Refunded" {
+function paymentStatusLabel(status: string): "Paid" | "Pending" | "Refunded" | "Failed" {
   switch (status.toLowerCase()) {
     case "paid":
       return "Paid";
     case "refunded":
       return "Refunded";
+    case "failed":
+      return "Failed";
     default:
       return "Pending";
   }
@@ -206,11 +210,20 @@ function percentChange(current: number, previous: number) {
 }
 
 async function fetchRooms() {
-  const result = await query<RoomDbRow>(`select * from rooms order by featured desc, created_at desc`);
+  const result = await query<RoomDbRow>(
+    `select * from rooms order by featured desc, created_at desc`,
+  );
   return result.rows.map((row) => serializeRoom(row));
 }
 
 async function fetchBookingsWithRooms() {
+  await query(
+    `update bookings
+     set booking_status = 'expired'
+     where booking_status in ('pending', 'confirmed')
+       and check_out_date < current_date`,
+  );
+
   const result = await query<BookingWithRoomRow>(
     `select
        b.*,
@@ -270,24 +283,23 @@ function bookingsInRange(
 
 export async function getAdminRoomsData(): Promise<AdminRoomRecord[]> {
   const [rooms, bookingsResult] = await Promise.all([fetchRooms(), fetchBookingsWithRooms()]);
-  const bookingCounts = new Map<string, number>();
+  const activeBookingCounts = new Map<string, number>();
   const occupiedRooms = new Set<string>();
   const today = startOfDay(new Date());
 
   for (const booking of bookingsResult) {
-    bookingCounts.set(booking.room_id, (bookingCounts.get(booking.room_id) ?? 0) + 1);
-
     const checkIn = parseDate(booking.check_in_date);
     const checkOut = parseDate(booking.check_out_date);
     const active =
       (booking.booking_status.toLowerCase() === "confirmed" ||
         booking.booking_status.toLowerCase() === "pending") &&
-      checkIn !== null &&
-      checkOut !== null &&
-      checkIn <= today &&
-      checkOut > today;
+        checkIn !== null &&
+        checkOut !== null &&
+        checkIn <= today &&
+        checkOut > today;
 
     if (active) {
+      activeBookingCounts.set(booking.room_id, (activeBookingCounts.get(booking.room_id) ?? 0) + 1);
       occupiedRooms.add(booking.room_id);
     }
   }
@@ -298,16 +310,21 @@ export async function getAdminRoomsData(): Promise<AdminRoomRecord[]> {
     type: room.room_type,
     capacity: room.max_guests,
     pricePerNight: room.price_per_night,
-    status: room.is_active && room.availability_status === "available" ? "Available" : "Maintenance",
+    status: !room.is_active
+      ? "Deleted"
+      : room.availability_status === "available"
+        ? "Available"
+        : "Maintenance",
     amenities: room.amenities as string[],
     description: room.description,
     image: Array.isArray(room.images) && typeof room.images[0] === "string" ? room.images[0] : "",
-    totalBookings: bookingCounts.get(room.id) ?? 0,
-    currentOccupancy:
-      room.is_active && room.availability_status === "available"
-      ? occupiedRooms.has(room.id)
-        ? "Occupied"
-        : "Vacant"
+    totalBookings: activeBookingCounts.get(room.id) ?? 0,
+    currentOccupancy: !room.is_active
+      ? "Deleted"
+      : room.availability_status === "available"
+        ? occupiedRooms.has(room.id)
+          ? "Occupied"
+          : "Vacant"
         : "Under Maintenance",
   }));
 }
@@ -441,8 +458,8 @@ export type AdminPaymentReceipt = {
   guests: number;
   amount: number;
   currency: string;
-  paymentStatus: "Paid" | "Pending" | "Refunded";
-  bookingStatus: "Confirmed" | "Pending" | "Cancelled";
+  paymentStatus: "Paid" | "Pending" | "Refunded" | "Failed";
+  bookingStatus: "Confirmed" | "Pending" | "Cancelled" | "Expired";
   transactionRef: string;
   bookingDate: string;
   updatedAt: string;

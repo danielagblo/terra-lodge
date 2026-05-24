@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import CheckoutView from "@/components/checkout-view";
 import { query as dbQuery } from "@/lib/db";
+import { getPriceConversion } from "@/lib/currency";
 import {
   addDaysToInput,
   findNextAvailableDate,
@@ -73,6 +75,7 @@ export default async function CheckoutPage({
     checkIn: String(row.check_in_date).slice(0, 10),
     checkOut: String(row.check_out_date).slice(0, 10),
   }));
+  const priceConversion = await getPriceConversion((await headers()).get("accept-language"));
   const today = todayDateInput();
   const defaultCheckIn = findNextAvailableDate(bookingWindows, today);
   const requestedCheckIn = parseDate(search.checkIn, defaultCheckIn);
@@ -103,6 +106,7 @@ export default async function CheckoutPage({
         guests: parseCount(search.guests, 1),
         rooms: parseCount(search.rooms, 1),
       }}
+      priceConversion={priceConversion}
       room={room}
     />
   );

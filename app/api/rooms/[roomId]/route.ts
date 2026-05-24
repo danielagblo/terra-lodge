@@ -122,9 +122,35 @@ export async function DELETE(
   if (unauthorized) return unauthorized;
 
   const { roomId } = await params;
-  const result = await query(`delete from rooms where id = $1 returning id`, [
-    roomId,
-  ]);
+  const activeBookings = await query(
+    `select id
+     from bookings
+     where room_id = $1
+       and booking_status in ('pending', 'confirmed')
+       and check_in_date <= current_date
+       and check_out_date > current_date
+     limit 1`,
+    [roomId],
+  );
+
+  if ((activeBookings.rowCount ?? 0) > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "This room is currently booked. Delete the booking first or wait until the stay is finished.",
+      },
+      { status: 409 },
+    );
+  }
+
+  const result = await query(
+    `update rooms
+     set is_active = false,
+         availability_status = 'closed'
+     where id = $1
+     returning id`,
+    [roomId],
+  );
 
   if (result.rowCount === 0) {
     return NextResponse.json({ error: "Room not found." }, { status: 404 });

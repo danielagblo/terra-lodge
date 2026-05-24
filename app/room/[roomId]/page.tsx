@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { query as dbQuery } from "@/lib/db";
+import { getPriceConversion } from "@/lib/currency";
 import { getRoomByIdentifier } from "@/lib/room-data";
 import RoomDetailView from "@/components/room-detail-view";
 import { siteContent } from "@/lib/site-content";
@@ -54,6 +56,7 @@ export default async function RoomDetailPage({
     checkIn: String(row.check_in_date).slice(0, 10),
     checkOut: String(row.check_out_date).slice(0, 10),
   }));
+  const priceConversion = await getPriceConversion((await headers()).get("accept-language"));
   const today = todayDateInput();
   const initialCheckIn = findNextAvailableDate(bookingWindows, today);
   const initialCheckOut = addDaysToInput(initialCheckIn, 1);
@@ -63,6 +66,7 @@ export default async function RoomDetailPage({
       bookingWindows={bookingWindows}
       initialCheckIn={initialCheckIn}
       initialCheckOut={initialCheckOut}
+      priceConversion={priceConversion}
       room={room}
     />
   );

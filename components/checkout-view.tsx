@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icon";
 import RoomImage from "@/components/room-image";
+import type { PriceConversion } from "@/lib/currency";
+import { formatConvertedAmount } from "@/lib/currency";
 import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
@@ -15,6 +17,8 @@ type GuestInfo = {
   email: string;
   phone: string;
 };
+
+type GuestField = keyof GuestInfo;
 
 type BookingDetails = {
   checkIn: string;
@@ -276,10 +280,12 @@ export default function CheckoutView({
   room,
   initialBooking,
   bookingConflict = false,
+  priceConversion,
 }: {
   room: Room;
   initialBooking: BookingDetails;
   bookingConflict?: boolean;
+  priceConversion?: PriceConversion | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -290,6 +296,7 @@ export default function CheckoutView({
     email: "",
     phone: "",
   });
+  const [guestErrors, setGuestErrors] = useState<Partial<Record<GuestField, string>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [pendingBookingId, setPendingBookingId] = useState<string>("");
   const [completedReference, setCompletedReference] = useState<string>("");
@@ -310,6 +317,10 @@ export default function CheckoutView({
     [booking.checkIn, booking.checkOut],
   );
   const subtotal = room.priceValue * nights * booking.rooms;
+  const convertedSubtotal =
+    priceConversion && priceConversion.currencyCode !== "GHS"
+      ? formatConvertedAmount(subtotal * priceConversion.rate, priceConversion.currencyCode)
+      : null;
   const bookingReference = completedReference || "";
   const isRoomUnavailable =
     room.isActive === false ||
@@ -332,6 +343,7 @@ export default function CheckoutView({
       `Guests: ${booking.guests}`,
       `Rooms: ${booking.rooms}`,
       `Total: GHS ${subtotal.toLocaleString()}`,
+      convertedSubtotal ? `Approx. total: ${convertedSubtotal}` : null,
     ].join("\n");
 
     return `https://wa.me/${siteContent.contact.whatsappDial}?text=${encodeURIComponent(message)}`;
@@ -344,15 +356,38 @@ export default function CheckoutView({
     guestInfo.fullName,
     room.name,
     subtotal,
+    convertedSubtotal,
   ]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = event.target;
+    const field = name as GuestField;
 
     setGuestInfo((current) => ({
       ...current,
       [name]: value,
     }));
+    setGuestErrors((current) => ({
+      ...current,
+      [field]: undefined,
+    }));
+  };
+
+  const validateGuestInfo = () => {
+    const nextErrors: Partial<Record<GuestField, string>> = {};
+
+    if (!guestInfo.fullName.trim()) {
+      nextErrors.fullName = "Please enter your full name.";
+    }
+    if (!guestInfo.email.trim()) {
+      nextErrors.email = "Please enter your email address.";
+    }
+    if (!guestInfo.phone.trim()) {
+      nextErrors.phone = "Please enter your phone number.";
+    }
+
+    setGuestErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const setModalInUrl = (modal: Exclude<ModalType, null> | null) => {
@@ -395,6 +430,10 @@ export default function CheckoutView({
 
   const handlePay = async () => {
     if (isCheckoutBlocked) {
+      return;
+    }
+
+    if (!validateGuestInfo()) {
       return;
     }
 
@@ -628,6 +667,12 @@ export default function CheckoutView({
                     GHS {subtotal.toLocaleString()}
                   </p>
                 </div>
+                {convertedSubtotal ? (
+                  <div className="flex items-center justify-between text-sm font-semibold text-outline-clay">
+                    <span>Approx. total</span>
+                    <span>{convertedSubtotal}</span>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-6 pt-6 border-t border-surface-container">
@@ -654,7 +699,12 @@ export default function CheckoutView({
                       Full Name
                     </label>
                     <input
-                      className="w-full bg-white border border-surface-container px-4 py-3 font-body-md text-base text-charred-wood outline-none focus:border-primary transition-colors"
+                      aria-invalid={Boolean(guestErrors.fullName)}
+                      className={`w-full bg-white border px-4 py-3 font-body-md text-base text-charred-wood outline-none transition-colors ${
+                        guestErrors.fullName
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-surface-container focus:border-primary"
+                      }`}
                       name="fullName"
                       onChange={handleChange}
                       placeholder="Enter your full name"
@@ -662,6 +712,11 @@ export default function CheckoutView({
                       type="text"
                       value={guestInfo.fullName}
                     />
+                    {guestErrors.fullName ? (
+                      <p className="mt-2 text-xs font-medium text-red-600">
+                        {guestErrors.fullName}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div>
@@ -669,7 +724,12 @@ export default function CheckoutView({
                       Email Address
                     </label>
                     <input
-                      className="w-full bg-white border border-surface-container px-4 py-3 font-body-md text-base text-charred-wood outline-none focus:border-primary transition-colors"
+                      aria-invalid={Boolean(guestErrors.email)}
+                      className={`w-full bg-white border px-4 py-3 font-body-md text-base text-charred-wood outline-none transition-colors ${
+                        guestErrors.email
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-surface-container focus:border-primary"
+                      }`}
                       name="email"
                       onChange={handleChange}
                       placeholder="your.email@example.com"
@@ -677,6 +737,11 @@ export default function CheckoutView({
                       type="email"
                       value={guestInfo.email}
                     />
+                    {guestErrors.email ? (
+                      <p className="mt-2 text-xs font-medium text-red-600">
+                        {guestErrors.email}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div>
@@ -684,7 +749,12 @@ export default function CheckoutView({
                       Phone Number
                     </label>
                     <input
-                      className="w-full bg-white border border-surface-container px-4 py-3 font-body-md text-base text-charred-wood outline-none focus:border-primary transition-colors"
+                      aria-invalid={Boolean(guestErrors.phone)}
+                      className={`w-full bg-white border px-4 py-3 font-body-md text-base text-charred-wood outline-none transition-colors ${
+                        guestErrors.phone
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-surface-container focus:border-primary"
+                      }`}
                       name="phone"
                       onChange={handleChange}
                       placeholder="+233 XX XXX XXXX"
@@ -692,6 +762,11 @@ export default function CheckoutView({
                       type="tel"
                       value={guestInfo.phone}
                     />
+                    {guestErrors.phone ? (
+                      <p className="mt-2 text-xs font-medium text-red-600">
+                        {guestErrors.phone}
+                      </p>
+                    ) : null}
                   </div>
 
                   <button

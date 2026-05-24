@@ -83,7 +83,7 @@ const fetchRooms = unstable_cache(
 const fetchRoomByIdentifier = unstable_cache(
   async (identifier: string) => {
     const result = await query(
-      `select * from rooms where id::text = $1 or slug = $1 limit 1`,
+      `select * from rooms where (id::text = $1 or slug = $1) and is_active = true limit 1`,
       [identifier],
     );
 

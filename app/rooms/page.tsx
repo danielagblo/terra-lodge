@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import RoomCatalog from "@/components/room-catalog";
+import { getPriceConversion } from "@/lib/currency";
 import { getRooms } from "@/lib/room-data";
 import { siteContent } from "@/lib/site-content";
 
@@ -24,6 +26,7 @@ export default async function RoomsPage({
 }) {
   const rooms = await getRooms();
   const query = await searchParams;
+  const priceConversion = await getPriceConversion((await headers()).get("accept-language"));
   const guestsValue = parseCount(query.guests, 1);
   const selectedBedType = Array.isArray(query.bedType)
     ? query.bedType[0]
@@ -42,6 +45,7 @@ export default async function RoomsPage({
     <main className="bg-surface-bone text-charred-wood">
       <RoomCatalog
         rooms={rooms}
+        priceConversion={priceConversion}
         initialFilters={{
           checkIn,
           checkOut,

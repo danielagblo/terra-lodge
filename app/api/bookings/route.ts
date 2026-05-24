@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 
   if ((conflict.rowCount ?? 0) > 0) {
     return NextResponse.json(
-      { error: "That room is already booked for the selected dates." },
+      { error: "This room is already booked for the dates you selected." },
       { status: 409 },
     );
   }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import Icon from "@/components/icon";
 import AvailabilitySearch from "@/components/availability-search";
 import RoomCard from "@/components/room-card";
+import type { PriceConversion } from "@/lib/currency";
 import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
@@ -113,7 +114,11 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
   );
 }
 
-export function AmenitiesSection({ amenities }: { amenities: readonly Amenity[] }) {
+export function AmenitiesSection({
+  amenities,
+}: {
+  amenities: readonly Amenity[];
+}) {
   return (
     <section
       className="px-6 md:px-section-padding py-section-padding bg-white"
@@ -139,7 +144,7 @@ export function AmenitiesSection({ amenities }: { amenities: readonly Amenity[] 
             <div className="pt-6">
               <Link
                 className="border-2 border-charred-wood px-8 py-3 font-bold text-sm font-label-caps uppercase hover:bg-charred-wood hover:text-white transition-all inline-flex"
-                href="/about"
+                href="/amenities"
               >
                 View All Amenities
               </Link>
@@ -167,7 +172,13 @@ export function AmenitiesSection({ amenities }: { amenities: readonly Amenity[] 
   );
 }
 
-export function FeaturedRoomsSection({ rooms }: { rooms: readonly Room[] }) {
+export function FeaturedRoomsSection({
+  rooms,
+  priceConversion,
+}: {
+  rooms: readonly Room[];
+  priceConversion?: PriceConversion | null;
+}) {
   return (
     <section
       className="px-6 md:px-section-padding py-section-padding bg-surface-container-low border-y border-surface-container"
@@ -182,7 +193,7 @@ export function FeaturedRoomsSection({ rooms }: { rooms: readonly Room[] }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {rooms.slice(0, 6).map((room) => (
-          <RoomCard key={room.slug} room={room} />
+          <RoomCard key={room.slug} priceConversion={priceConversion} room={room} />
         ))}
       </div>
       <div className="mt-12 flex justify-center max-w-6xl mx-auto">

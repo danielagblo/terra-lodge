@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icon";
@@ -59,9 +60,18 @@ export function AdminLoginView({ nextPath, loggedOut }: AdminLoginViewProps) {
     <main className="flex min-h-screen items-center justify-center bg-surface-bone px-4 py-8">
       <div className="w-full max-w-[440px]">
         <div className="mb-12 text-center">
-          <h1 className="font-eczar text-[40px] font-bold text-primary">
-            {siteContent.brand.name}
-          </h1>
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <Image
+              alt={`${siteContent.brand.name} logo`}
+              className="h-14 w-14 rounded-full object-cover"
+              height={56}
+              src="/logo.png"
+              width={56}
+            />
+            <h1 className="font-eczar text-[40px] font-bold text-primary">
+              {siteContent.brand.name}
+            </h1>
+          </div>
           <p className="mt-2 font-label-caps text-[14px] uppercase tracking-[0.2em] text-outline-clay">
             Admin Access
           </p>

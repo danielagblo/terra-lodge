@@ -1,6 +1,7 @@
 "use client";
 
 import Icon from "./icon";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { siteContent } from "@/lib/site-content";
@@ -12,12 +13,14 @@ type NavLink = {
 const navLinks: NavLink[] = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
+  { label: "Amenities", href: "/amenities" },
   { label: "Rooms", href: "/rooms" },
   { label: "Contact", href: "/contact" },
 ];
 
 const mobileNavLinks = [
   { label: "Home", href: "/", icon: "home" },
+  { label: "Amenities", href: "/amenities", icon: "spa" },
   { label: "Rooms", href: "/rooms", icon: "bed" },
   { label: "About", href: "/about", icon: "info" },
   { label: "Contact", href: "/contact", icon: "call" },
@@ -36,10 +39,16 @@ export const Header = () => {
       <header>
         <nav className="w-full top-0 sticky flex justify-between items-center gap-4 px-6 md:px-12 py-5 max-w-full mx-auto z-50 bg-white border-b border-surface-container-high shadow-sm transition-all duration-300">
           <Link
-            className="font-headline-sm text-headline-sm font-bold text-charred-wood flex items-center gap-2"
+            className="flex items-center gap-3 font-headline-sm text-headline-sm font-bold text-charred-wood"
             href="/"
           >
-            <Icon name="foundation" className="text-primary text-3xl" />
+            <Image
+              alt={`${siteContent.brand.name} logo`}
+              className="h-11 w-11 rounded-full object-cover"
+              height={44}
+              src="/logo.png"
+              width={44}
+            />
             <span className="tracking-tight">{siteContent.brand.name}</span>
           </Link>
           <div className="hidden md:flex gap-8 items-center">
@@ -69,7 +78,7 @@ export const Header = () => {
         aria-label="Mobile navigation"
         className="fixed inset-x-0 bottom-0 z-[90] border-t border-surface-container-high bg-white/95 backdrop-blur md:hidden"
       >
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {mobileNavLinks.map((link) => {
             const active = isActiveLink(link.href);
 
@@ -77,7 +86,9 @@ export const Header = () => {
               <Link
                 aria-current={active ? "page" : undefined}
                 className={`flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                  active ? "text-primary" : "text-on-surface-variant"
+                  active
+                    ? "border-b-2 border-primary bg-primary-fixed text-primary"
+                    : "border-b-2 border-transparent text-on-surface-variant"
                 }`}
                 href={link.href}
                 key={link.label}
