@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import Icon from "@/components/icon";
 import RoomImage from "@/components/room-image";
 import type { PriceConversion } from "@/lib/currency";
@@ -14,6 +13,14 @@ import {
   todayDateInput,
   type BookingWindow,
 } from "@/lib/booking-dates";
+import {
+  clearBookingSession,
+  createBookingSession,
+  isBookingSessionExpired,
+  readBookingSession,
+  writeBookingSession,
+  type BookingSession,
+} from "@/lib/booking-session";
 import type { Room } from "@/lib/rooms";
 
 function parseDate(value: string) {
@@ -34,88 +41,20 @@ function calculateNights(checkIn: string, checkOut: string) {
   return Math.max(diff, 1);
 }
 
-type BookingSnapshot = {
-  reference: string;
-  state: "available" | "booked" | "unavailable";
-};
-
-const bookingSnapshotCache = new Map<string, BookingSnapshot>();
-
-function getRoomBookingSnapshot(
-  room: Room,
-  searchParams: ReturnType<typeof useSearchParams>,
-  canReadStorage: boolean,
-) {
-  const roomId = String(room.id);
-  const isUnavailable =
-    room.isActive === false || (room.availabilityStatus ?? "available") !== "available";
-  const bookingFlag = searchParams.get("booking");
-  const bookingRoomId = searchParams.get("bookingRoomId");
-  const bookingRef = searchParams.get("bookingRef") ?? searchParams.get("reference") ?? "";
-  const storedRoomId = canReadStorage ? window.localStorage.getItem("terra:last-booked-room-id") : "";
-  const storedReference = canReadStorage
-    ? window.localStorage.getItem("terra:last-booked-reference") ?? ""
-    : "";
-
-  const cacheKey = [
-    roomId,
-    room.isActive ? "active" : "inactive",
-    room.availabilityStatus ?? "available",
-    bookingFlag ?? "",
-    bookingRoomId ?? "",
-    bookingRef,
-    storedRoomId ?? "",
-    storedReference,
-  ].join("|");
-
-  const cachedSnapshot = bookingSnapshotCache.get(cacheKey);
-  if (cachedSnapshot) {
-    return cachedSnapshot;
-  }
-
-  if (bookingFlag === "success" && bookingRoomId === roomId) {
-    const snapshot = {
-      reference: bookingRef,
-      state: "booked" as const,
-    };
-    bookingSnapshotCache.set(cacheKey, snapshot);
-    return snapshot;
-  }
-
-  if (canReadStorage) {
-    if (storedRoomId === roomId) {
-      const snapshot = {
-        reference: storedReference,
-        state: "booked" as const,
-      };
-      bookingSnapshotCache.set(cacheKey, snapshot);
-      return snapshot;
-    }
-  }
-
-  const snapshot = {
-    reference: "",
-    state: isUnavailable ? ("unavailable" as const) : ("available" as const),
+type BookingLookupResponse = {
+  active: boolean;
+  booking: {
+    bookingCode: string;
+    bookingStatus: string;
+    checkInDate: string;
+    checkOutDate: string;
+    expiresAt: string;
+    paymentStatus: string;
+    paystackReference: string | null;
+    reference: string;
+    roomId: string;
   };
-  bookingSnapshotCache.set(cacheKey, snapshot);
-  return snapshot;
-}
-
-function useRoomBookingSnapshot(room: Room, searchParams: ReturnType<typeof useSearchParams>) {
-  return useSyncExternalStore(
-    (onStoreChange) => {
-      window.addEventListener("storage", onStoreChange);
-      window.addEventListener("terra-booking-updated", onStoreChange);
-
-      return () => {
-        window.removeEventListener("storage", onStoreChange);
-        window.removeEventListener("terra-booking-updated", onStoreChange);
-      };
-    },
-    () => getRoomBookingSnapshot(room, searchParams, true),
-    () => getRoomBookingSnapshot(room, searchParams, false),
-  );
-}
+};
 
 export default function RoomDetailView({
   room,
@@ -132,8 +71,9 @@ export default function RoomDetailView({
   amenityLookup?: Record<string, string>;
   priceConversion?: PriceConversion | null;
 }) {
-  const searchParams = useSearchParams();
   const [selectedImage, setSelectedImage] = useState(0);
+  const [bookingSession, setBookingSession] = useState<BookingSession | null>(null);
+  const [bookingState, setBookingState] = useState<"checking" | "active" | "available">("checking");
   const safeInitialCheckIn = bookingWindows.length
     ? findNextAvailableDate(bookingWindows, initialCheckIn)
     : initialCheckIn;
@@ -157,10 +97,9 @@ export default function RoomDetailView({
       ? formatConvertedAmount(totalPrice * priceConversion.rate, priceConversion.currencyCode)
       : null;
   const gallery = room.gallery.length > 0 ? room.gallery : [room.image];
-  const bookingSnapshot = useRoomBookingSnapshot(room, searchParams);
-  const isBooked = bookingSnapshot.state === "booked";
-  const isRoomUnavailable = bookingSnapshot.state === "unavailable";
-  const bookedReference = bookingSnapshot.reference;
+  const isBooked = bookingState === "active";
+  const isRoomUnavailable = room.isActive === false || (room.availabilityStatus ?? "available") !== "available";
+  const bookedReference = bookingSession?.reference ?? "";
   const minCheckIn = isBooked ? safeInitialCheckIn : todayDateInput();
   const minCheckOut = addDaysToInput(checkIn, 1);
   const bookNowHref = useMemo(() => {
@@ -201,6 +140,102 @@ export default function RoomDetailView({
     setCheckIn(normalized.checkIn);
     setCheckOut(normalized.checkOut);
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncBookingSession = async () => {
+      const storedSession = readBookingSession(window.localStorage);
+      const inactiveState: typeof bookingState = "available";
+
+      if (!storedSession) {
+        if (!cancelled) {
+          setBookingSession(null);
+          setBookingState(inactiveState);
+        }
+        return;
+      }
+
+      if (storedSession.roomId !== String(room.id) || isBookingSessionExpired(storedSession)) {
+        clearBookingSession(window.localStorage);
+        window.dispatchEvent(new Event("terra-booking-updated"));
+        if (!cancelled) {
+          setBookingSession(null);
+          setBookingState(inactiveState);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/bookings/lookup?reference=${encodeURIComponent(
+            storedSession.reference,
+          )}&roomId=${encodeURIComponent(String(room.id))}`,
+        );
+
+        if (!response.ok) {
+          clearBookingSession(window.localStorage);
+          window.dispatchEvent(new Event("terra-booking-updated"));
+          if (!cancelled) {
+            setBookingSession(null);
+            setBookingState(inactiveState);
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as BookingLookupResponse;
+        if (!payload.active) {
+          clearBookingSession(window.localStorage);
+          window.dispatchEvent(new Event("terra-booking-updated"));
+          if (!cancelled) {
+            setBookingSession(null);
+            setBookingState(inactiveState);
+          }
+          return;
+        }
+
+        const nextSession = createBookingSession({
+          bookingCode: payload.booking.bookingCode,
+          checkInDate: payload.booking.checkInDate,
+          checkOutDate: payload.booking.checkOutDate,
+          reference: payload.booking.reference,
+          roomId: payload.booking.roomId,
+        });
+
+        writeBookingSession(window.localStorage, nextSession);
+
+        if (!cancelled) {
+          setBookingSession(nextSession);
+          setBookingState("active");
+        }
+      } catch {
+        if (!cancelled) {
+          setBookingSession(storedSession);
+          setBookingState("active");
+        }
+      }
+    };
+
+    const refreshBookingSession = () => {
+      void syncBookingSession();
+    };
+
+    refreshBookingSession();
+    window.addEventListener("storage", refreshBookingSession);
+    window.addEventListener("terra-booking-updated", refreshBookingSession);
+    const timer = window.setInterval(refreshBookingSession, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", refreshBookingSession);
+      window.removeEventListener("terra-booking-updated", refreshBookingSession);
+      window.clearInterval(timer);
+    };
+  }, [room.id]);
 
   return (
     <main className="bg-[#fafaf9] text-charred-wood">
@@ -253,10 +288,10 @@ export default function RoomDetailView({
                   <Icon name="check_circle" className="mt-0.5 text-green-700" />
                   <div>
                     <p className="font-label-caps text-[11px] font-bold uppercase tracking-widest">
-                      Booking Confirmed
+                      Booking Active
                     </p>
                     <p className="mt-1 font-body-md leading-relaxed">
-                      Thanks for booking this room. Your booking is saved on this device.
+                      Thanks for booking this room. Your booking is active on this device.
                     </p>
                     {bookedReference ? (
                       <p className="mt-2 font-body-md text-xs font-bold text-green-800">

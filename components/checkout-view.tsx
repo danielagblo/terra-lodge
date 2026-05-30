@@ -7,6 +7,11 @@ import Icon from "@/components/icon";
 import RoomImage from "@/components/room-image";
 import type { PriceConversion } from "@/lib/currency";
 import { formatConvertedAmount } from "@/lib/currency";
+import {
+  clearBookingSession,
+  createBookingSession,
+  writeBookingSession,
+} from "@/lib/booking-session";
 import type { Room } from "@/lib/rooms";
 import { siteContent } from "@/lib/site-content";
 
@@ -32,12 +37,6 @@ type InitializeResponse = {
   reference: string;
   bookingId: string;
   bookingCode: string;
-};
-
-type VerifyResponse = {
-  booking: {
-    paystack_reference: string | null;
-  };
 };
 
 function isModalType(value: string | null): value is Exclude<ModalType, null> {
@@ -176,11 +175,11 @@ function SuccessModal({
           href={`/receipt/${bookingCode}`}
         >
           <span className="font-label-caps text-sm font-bold text-white uppercase">
-            View My Booking
+            View My Receipt
           </span>
         </Link>
       }
-      primaryLabel="View My Booking"
+      primaryLabel="View My Receipt"
       reference={reference}
       secondaryAction={
         <a
@@ -290,7 +289,9 @@ export default function CheckoutView({
     email: "",
     phone: "",
   });
-  const [guestErrors, setGuestErrors] = useState<Partial<Record<GuestField, string>>>({});
+  const [guestErrors, setGuestErrors] = useState<
+    Partial<Record<GuestField, string>>
+  >({});
   const [isLoading, setIsLoading] = useState(false);
   const [pendingBookingId, setPendingBookingId] = useState<string>("");
   const [completedReference, setCompletedReference] = useState<string>("");
@@ -314,7 +315,10 @@ export default function CheckoutView({
   const subtotal = room.priceValue * nights * booking.rooms;
   const convertedSubtotal =
     priceConversion && priceConversion.currencyCode !== "GHS"
-      ? formatConvertedAmount(subtotal * priceConversion.rate, priceConversion.currencyCode)
+      ? formatConvertedAmount(
+          subtotal * priceConversion.rate,
+          priceConversion.currencyCode,
+        )
       : null;
   const bookingReference = completedReference || "";
   const isRoomUnavailable =
@@ -423,6 +427,23 @@ export default function CheckoutView({
     }
   };
 
+  const persistBookingSession = (reference: string, bookingCode: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const session = createBookingSession({
+      bookingCode,
+      checkInDate: booking.checkIn,
+      checkOutDate: booking.checkOut,
+      reference,
+      roomId: String(room.id),
+    });
+
+    writeBookingSession(window.localStorage, session);
+    window.dispatchEvent(new Event("terra-booking-updated"));
+  };
+
   const handlePay = async () => {
     if (isCheckoutBlocked) {
       return;
@@ -482,6 +503,18 @@ export default function CheckoutView({
           setIsLoading(false);
         },
         onSuccess: async ({ reference }) => {
+          const bookingReference = reference || initializeData.reference;
+          const bookingCode = initializeData.bookingCode;
+
+          if (typeof window !== "undefined") {
+            persistBookingSession(bookingReference, bookingCode);
+          }
+
+          setCompletedReference(bookingReference);
+          setCompletedBookingCode(bookingCode);
+          setModalInUrl("success");
+          setIsLoading(false);
+
           try {
             const verifyResponse = await fetch(
               `/api/paystack/verify?reference=${encodeURIComponent(reference)}`,
@@ -491,27 +524,21 @@ export default function CheckoutView({
               throw new Error("Payment verification failed.");
             }
 
-            const verifyData = (await verifyResponse.json()) as VerifyResponse;
+            await verifyResponse.json();
             if (typeof window !== "undefined") {
-              window.localStorage.setItem(
-                "terra:last-booked-room-id",
-                String(room.id),
-              );
-              window.localStorage.setItem(
-                "terra:last-booked-reference",
-                verifyData.booking.paystack_reference ?? reference,
-              );
+              persistBookingSession(bookingReference, bookingCode);
+            }
+          } catch {
+            if (typeof window !== "undefined") {
+              clearBookingSession(window.localStorage);
               window.dispatchEvent(new Event("terra-booking-updated"));
             }
-            setCompletedReference(
-              verifyData.booking.paystack_reference ?? reference,
-            );
-            setModalInUrl("success");
-          } catch {
+
             void markBookingFailed();
-            setModalInUrl("failed");
-          } finally {
-            setIsLoading(false);
+
+            if (window.location.search.includes("payment-status=success")) {
+              setModalInUrl("failed");
+            }
           }
         },
       });
